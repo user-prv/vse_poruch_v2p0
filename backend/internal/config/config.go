@@ -8,6 +8,8 @@ import (
 
 type Config struct {
 	Port         string
+	LogFormat    string
+	LogLevel     string
 	DBHost       string
 	DBPort       string
 	DBUser       string
@@ -24,6 +26,8 @@ type Config struct {
 func Load() Config {
 	return Config{
 		Port:         getEnv("PORT", "8080"),
+		LogFormat:    getEnv("LOG_FORMAT", "json"),
+		LogLevel:     getEnv("LOG_LEVEL", "info"),
 		DBHost:       getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:       getEnv("DB_PORT", "5432"),
 		DBUser:       getEnv("DB_USER", "postgres"),

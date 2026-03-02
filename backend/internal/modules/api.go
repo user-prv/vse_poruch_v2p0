@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,25 +11,26 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/vseporuch/v2/backend/internal/response"
 	"gorm.io/gorm"
 )
 
 type API struct {
-	db *gorm.DB
+	db  *gorm.DB
+	log *logrus.Logger
 }
 
-func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB) error {
+func RegisterRoutes(rg *gin.RouterGroup, authGroup *gin.RouterGroup, db *gorm.DB, log *logrus.Logger) error {
 	if err := db.AutoMigrate(&User{}, &Category{}, &Listing{}); err != nil {
 		return err
 	}
-	api := &API{db: db}
+	api := &API{db: db, log: log}
 
-	auth := rg.Group("/auth")
-	auth.POST("/register", api.Register)
-	auth.POST("/login", api.Login)
-	auth.POST("/logout", api.Logout)
-	auth.POST("/reset-password", api.ResetPassword)
+	authGroup.POST("/register", api.Register)
+	authGroup.POST("/login", api.Login)
+	authGroup.POST("/logout", api.Logout)
+	authGroup.POST("/reset-password", api.ResetPassword)
 	rg.GET("/profile/:id", api.Profile)
 
 	rg.POST("/listings", api.CreateListing)
@@ -63,11 +65,12 @@ func (a *API) Register(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	user := User{Email: req.Email, Role: "user"}
+	user := User{Email: strings.ToLower(strings.TrimSpace(req.Email)), Role: "user"}
 	if err := a.db.Create(&user).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "user already exists")
 		return
 	}
+	a.log.WithFields(logrus.Fields{"event": "auth.register", "user_id": user.ID, "email": user.Email}).Info("audit")
 	response.JSON(c, http.StatusCreated, gin.H{"id": user.ID, "email": user.Email})
 }
 
@@ -78,15 +81,21 @@ func (a *API) Login(c *gin.Context) {
 		return
 	}
 	var user User
-	if err := a.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := a.db.Where("email = ?", strings.ToLower(strings.TrimSpace(req.Email))).First(&user).Error; err != nil {
 		response.Error(c, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	a.log.WithFields(logrus.Fields{"event": "auth.login", "user_id": user.ID, "email": user.Email}).Info("audit")
 	response.JSON(c, http.StatusOK, gin.H{"token": fmt.Sprintf("user-%d", user.ID)})
 }
 
-func (a *API) Logout(c *gin.Context) { response.JSON(c, http.StatusOK, gin.H{"message": "logged out"}) }
+func (a *API) Logout(c *gin.Context) {
+	a.log.WithField("event", "auth.logout").Info("audit")
+	response.JSON(c, http.StatusOK, gin.H{"message": "logged out"})
+}
+
 func (a *API) ResetPassword(c *gin.Context) {
+	a.log.WithField("event", "auth.reset_password").Info("audit")
 	response.JSON(c, http.StatusOK, gin.H{"message": "reset email sent"})
 }
 
@@ -113,7 +122,7 @@ func (a *API) CreateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	listing := Listing{Title: req.Title, Body: req.Body, AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: "pending"}
+	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: "pending"}
 	if err := a.db.Create(&listing).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "cannot create listing")
 		return
@@ -170,7 +179,7 @@ func (a *API) UpdateListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID = req.Title, req.Body, req.AuthorID, req.CategoryID
+	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID
 	a.db.Save(&listing)
 	response.JSON(c, http.StatusOK, listing)
 }
@@ -195,7 +204,7 @@ func (a *API) CreateCategory(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	cat := Category{Name: req.Name, ParentID: req.ParentID, IconPath: req.IconPath}
+	cat := Category{Name: html.EscapeString(req.Name), ParentID: req.ParentID, IconPath: req.IconPath}
 	a.db.Create(&cat)
 	response.JSON(c, http.StatusCreated, cat)
 }
@@ -215,7 +224,7 @@ func (a *API) UpdateCategory(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "category not found")
 		return
 	}
-	cat.Name, cat.ParentID, cat.IconPath = req.Name, req.ParentID, req.IconPath
+	cat.Name, cat.ParentID, cat.IconPath = html.EscapeString(req.Name), req.ParentID, req.IconPath
 	a.db.Save(&cat)
 	response.JSON(c, http.StatusOK, cat)
 }
@@ -264,14 +273,18 @@ func (a *API) ModerateListing(c *gin.Context) {
 	}
 	listing.Status = payload.Status
 	a.db.Save(&listing)
+	a.log.WithFields(logrus.Fields{"event": "admin.moderate_listing", "listing_id": listing.ID, "status": listing.Status}).Info("audit")
 	response.JSON(c, http.StatusOK, listing)
 }
 func (a *API) VerifyUser(c *gin.Context) {
+	a.log.WithFields(logrus.Fields{"event": "admin.verify_user", "user_id": c.Param("id")}).Info("audit")
 	response.JSON(c, http.StatusOK, gin.H{"user_id": c.Param("id"), "verified": true})
 }
 func (a *API) BlockUser(c *gin.Context) {
+	a.log.WithFields(logrus.Fields{"event": "admin.block_user", "user_id": c.Param("id")}).Info("audit")
 	response.JSON(c, http.StatusOK, gin.H{"user_id": c.Param("id"), "blocked": true})
 }
 func (a *API) SetCategoryIcon(c *gin.Context) {
+	a.log.WithFields(logrus.Fields{"event": "admin.set_category_icon", "category_id": c.Param("id")}).Info("audit")
 	response.JSON(c, http.StatusOK, gin.H{"category_id": c.Param("id"), "updated": true})
 }

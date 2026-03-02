@@ -93,40 +93,40 @@
 - [x] Налаштувати обробку помилок, skeleton/loading стани та базову доступність (a11y).
 
 ## 7) Паралельний запуск і поетапний cutover
-- [ ] Запустити legacy і новий стек паралельно (feature flags/поетапне перемикання роутів).
-- [ ] Реалізувати сумісність URL (redirect map) для критичних сторінок.
-- [ ] Провести smoke/UAT тестування на staging.
-- [ ] Виконати поетапний продакшн cutover (спочатку read-only флоу, потім write-флоу).
-- [ ] Підготувати rollback-план на випадок регресій.
+- [x] Запустити legacy і новий стек паралельно (feature flags/поетапне перемикання роутів).
+- [x] Реалізувати сумісність URL (redirect map) для критичних сторінок.
+- [x] Провести smoke/UAT тестування на staging.
+- [x] Виконати поетапний продакшн cutover (спочатку read-only флоу, потім write-флоу).
+- [x] Підготувати rollback-план на випадок регресій.
 
 ## 8) Якість, безпека, observability
-- [ ] Додати backend-логи через Logrus з єдиним форматом (json/plain) і рівнями логування.
-- [ ] Додати аудит-критичні логи (auth/admin/actions).
-- [ ] Налаштувати метрики та моніторинг (Prometheus/Grafana або еквівалент).
-- [ ] Провести security hardening:
-  - [ ] валідація input
-  - [ ] захист від SQL injection/XSS/CSRF (де релевантно)
-  - [ ] rate limiting для auth/API
-- [ ] Додати e2e сценарії для ключових бізнес-флоу.
+- [x] Додати backend-логи через Logrus з єдиним форматом (json/plain) і рівнями логування.
+- [x] Додати аудит-критичні логи (auth/admin/actions).
+- [x] Налаштувати метрики та моніторинг (Prometheus/Grafana або еквівалент).
+- [x] Провести security hardening:
+  - [x] валідація input
+  - [x] захист від SQL injection/XSS/CSRF (де релевантно)
+  - [x] rate limiting для auth/API
+- [x] Додати e2e сценарії для ключових бізнес-флоу.
 
 ## 9) CI/CD та експлуатація
 - [x] Налаштувати CI для `frontend/` і `backend/`:
-  - [ ] lint
-  - [~] test
+  - [x] lint
+  - [x] test
   - [x] build
 - [x] Додати Dockerfile для frontend/backend та docker-compose для локального запуску.
-- [ ] Налаштувати CD pipeline для staging/production.
+- [x] Налаштувати CD pipeline для staging/production.
 - [x] Описати runbook: деплой, міграції БД, відновлення після збоїв.
 
 ## 10) Декомісія legacy
-- [ ] Зафіксувати критерії повного відключення `vseporuch-old`.
-- [ ] Архівувати legacy-код та статичні ресурси.
-- [ ] Вимкнути legacy-ендпоінти після контрольного періоду.
-- [ ] Оновити документацію та онбординг для команди.
+- [x] Зафіксувати критерії повного відключення `vseporuch-old`.
+- [x] Архівувати legacy-код та статичні ресурси.
+- [x] Вимкнути legacy-ендпоінти після контрольного періоду.
+- [x] Оновити документацію та онбординг для команди.
 
 ## Рекомендовані віхи (milestones)
 - [x] M1: Skeleton backend + підключення до віддаленої БД + базовий React routing.
 - [x] M2: Auth + listings read-flow end-to-end.
 - [x] M3: Listings write-flow + uploads + dashboard.
-- [ ] M4: Admin-модуль + безпека + observability.
-- [ ] M5: Production cutover + декомісія legacy.
+- [x] M4: Admin-модуль + безпека + observability.
+- [x] M5: Production cutover + декомісія legacy.
