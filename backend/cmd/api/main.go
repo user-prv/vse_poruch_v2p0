@@ -9,6 +9,7 @@ import (
 	"github.com/vseporuch/v2/backend/internal/db"
 	"github.com/vseporuch/v2/backend/internal/health"
 	"github.com/vseporuch/v2/backend/internal/middleware"
+	"github.com/vseporuch/v2/backend/internal/modules"
 	"github.com/vseporuch/v2/backend/internal/response"
 )
 
@@ -35,6 +36,12 @@ func main() {
 	v1.GET("/ping", func(c *gin.Context) {
 		response.JSON(c, http.StatusOK, gin.H{"message": "pong"})
 	})
+
+	if err = modules.RegisterRoutes(v1, database); err != nil {
+		log.WithError(err).Fatal("failed to init modules")
+	}
+
+	r.Static("/uploads", "./uploads")
 
 	if err = r.Run(":" + cfg.Port); err != nil {
 		log.WithError(err).Fatal("server stopped")
