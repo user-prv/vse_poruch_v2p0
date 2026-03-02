@@ -112,8 +112,8 @@ func (a *API) Profile(c *gin.Context) {
 type listingRequest struct {
 	Title      string `json:"title" binding:"required,min=3"`
 	Body       string `json:"body"`
-	AuthorID   uint   `json:"author_id" binding:"required"`
-	CategoryID uint   `json:"category_id" binding:"required"`
+	AuthorID   uint64 `json:"author_id" binding:"required"`
+	CategoryID uint64 `json:"category_id" binding:"required"`
 }
 
 func (a *API) CreateListing(c *gin.Context) {
@@ -193,9 +193,9 @@ func (a *API) DeleteListing(c *gin.Context) {
 }
 
 type categoryRequest struct {
-	Name     string `json:"name" binding:"required"`
-	ParentID *uint  `json:"parent_id"`
-	IconPath string `json:"icon_path"`
+	Name     string  `json:"name" binding:"required"`
+	ParentID *uint64 `json:"parent_id"`
+	IconPath string  `json:"icon_path"`
 }
 
 func (a *API) CreateCategory(c *gin.Context) {
