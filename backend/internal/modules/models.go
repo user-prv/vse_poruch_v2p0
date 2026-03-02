@@ -2,8 +2,8 @@ package modules
 
 type User struct {
 	ID    uint   `gorm:"primaryKey"`
-	Email string `gorm:"uniqueIndex;not null"`
-	Role  string `gorm:"index;default:user"`
+	Email string `gorm:"size:255;uniqueIndex;not null"`
+	Role  string `gorm:"size:32;index;default:user"`
 }
 
 type Category struct {
@@ -15,9 +15,9 @@ type Category struct {
 
 type Listing struct {
 	ID         uint   `gorm:"primaryKey"`
-	Title      string `gorm:"index;not null"`
+	Title      string `gorm:"size:255;index;not null"`
 	Body       string
 	AuthorID   uint
 	CategoryID uint
-	Status     string `gorm:"index;default:pending"`
+	Status     string `gorm:"size:32;index;default:pending"`
 }
