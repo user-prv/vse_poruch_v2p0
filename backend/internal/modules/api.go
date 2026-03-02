@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
@@ -19,6 +20,41 @@ import (
 type API struct {
 	db  *gorm.DB
 	log *logrus.Logger
+}
+
+var allowedListingStatuses = map[string]struct{}{
+	"active":  {},
+	"blocked": {},
+	"deleted": {},
+	"pending": {},
+}
+
+func normalizeStatus(status string) string {
+	normalized := strings.ToLower(strings.TrimSpace(status))
+	if normalized == "" {
+		return "pending"
+	}
+	if _, ok := allowedListingStatuses[normalized]; ok {
+		return normalized
+	}
+	return ""
+}
+
+func listingToResponse(listing Listing) gin.H {
+	photoPaths := []string{}
+	if listing.PhotoPaths != "" {
+		_ = json.Unmarshal([]byte(listing.PhotoPaths), &photoPaths)
+	}
+
+	return gin.H{
+		"id":          listing.ID,
+		"title":       listing.Title,
+		"body":        listing.Body,
+		"author_id":   listing.AuthorID,
+		"category_id": listing.CategoryID,
+		"status":      listing.Status,
+		"photo_paths": photoPaths,
+	}
 }
 
 func RegisterRoutes(rg *gin.RouterGroup, authGroup *gin.RouterGroup, db *gorm.DB, log *logrus.Logger) error {
@@ -110,10 +146,12 @@ func (a *API) Profile(c *gin.Context) {
 }
 
 type listingRequest struct {
-	Title      string `json:"title" binding:"required,min=3"`
-	Body       string `json:"body"`
-	AuthorID   uint   `json:"author_id" binding:"required"`
-	CategoryID uint   `json:"category_id" binding:"required"`
+	Title      string   `json:"title" binding:"required,min=3"`
+	Body       string   `json:"body"`
+	AuthorID   uint     `json:"author_id" binding:"required"`
+	CategoryID uint     `json:"category_id" binding:"required"`
+	Status     string   `json:"status"`
+	PhotoPaths []string `json:"photo_paths"`
 }
 
 func (a *API) CreateListing(c *gin.Context) {
@@ -122,17 +160,28 @@ func (a *API) CreateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: "pending"}
+	status := normalizeStatus(req.Status)
+	if status == "" {
+		response.Error(c, http.StatusBadRequest, "invalid status")
+		return
+	}
+	photoBytes, _ := json.Marshal(req.PhotoPaths)
+	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: status, PhotoPaths: string(photoBytes)}
 	if err := a.db.Create(&listing).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "cannot create listing")
 		return
 	}
-	response.JSON(c, http.StatusCreated, listing)
+	response.JSON(c, http.StatusCreated, listingToResponse(listing))
 }
 
 func (a *API) ListListings(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
-	status := strings.TrimSpace(c.Query("status"))
+	status := normalizeStatus(c.Query("status"))
+	authorID, _ := strconv.Atoi(c.Query("author_id"))
+	if c.Query("status") != "" && status == "" {
+		response.Error(c, http.StatusBadRequest, "invalid status")
+		return
+	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
@@ -149,6 +198,9 @@ func (a *API) ListListings(c *gin.Context) {
 	if status != "" {
 		dbq = dbq.Where("status = ?", status)
 	}
+	if authorID > 0 {
+		dbq = dbq.Where("author_id = ?", authorID)
+	}
 	var total int64
 	dbq.Count(&total)
 	var items []Listing
@@ -156,7 +208,11 @@ func (a *API) ListListings(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "failed")
 		return
 	}
-	response.JSON(c, http.StatusOK, gin.H{"items": items, "page": page, "limit": limit, "total": total})
+	serialized := make([]gin.H, 0, len(items))
+	for _, item := range items {
+		serialized = append(serialized, listingToResponse(item))
+	}
+	response.JSON(c, http.StatusOK, gin.H{"items": serialized, "page": page, "limit": limit, "total": total})
 }
 
 func (a *API) GetListing(c *gin.Context) {
@@ -165,7 +221,7 @@ func (a *API) GetListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	response.JSON(c, http.StatusOK, listing)
+	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
 
 func (a *API) UpdateListing(c *gin.Context) {
@@ -174,22 +230,31 @@ func (a *API) UpdateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
+	status := normalizeStatus(req.Status)
+	if status == "" {
+		response.Error(c, http.StatusBadRequest, "invalid status")
+		return
+	}
 	var listing Listing
 	if err := a.db.First(&listing, c.Param("id")).Error; err != nil {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID
+	photoBytes, _ := json.Marshal(req.PhotoPaths)
+	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID, listing.Status, listing.PhotoPaths = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID, status, string(photoBytes)
 	a.db.Save(&listing)
-	response.JSON(c, http.StatusOK, listing)
+	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
 
 func (a *API) DeleteListing(c *gin.Context) {
-	if err := a.db.Delete(&Listing{}, c.Param("id")).Error; err != nil {
-		response.Error(c, http.StatusBadRequest, "failed")
+	var listing Listing
+	if err := a.db.First(&listing, c.Param("id")).Error; err != nil {
+		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	response.JSON(c, http.StatusOK, gin.H{"deleted": true})
+	listing.Status = "deleted"
+	a.db.Save(&listing)
+	response.JSON(c, http.StatusOK, gin.H{"deleted": true, "status": listing.Status})
 }
 
 type categoryRequest struct {
@@ -260,10 +325,15 @@ func (a *API) UploadPhoto(c *gin.Context) {
 
 func (a *API) ModerateListing(c *gin.Context) {
 	var payload struct {
-		Status string `json:"status" binding:"required,oneof=approved rejected pending"`
+		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request")
+		return
+	}
+	status := normalizeStatus(payload.Status)
+	if status == "" {
+		response.Error(c, http.StatusBadRequest, "invalid status")
 		return
 	}
 	var listing Listing
@@ -271,10 +341,10 @@ func (a *API) ModerateListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	listing.Status = payload.Status
+	listing.Status = status
 	a.db.Save(&listing)
 	a.log.WithFields(logrus.Fields{"event": "admin.moderate_listing", "listing_id": listing.ID, "status": listing.Status}).Info("audit")
-	response.JSON(c, http.StatusOK, listing)
+	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
 func (a *API) VerifyUser(c *gin.Context) {
 	a.log.WithFields(logrus.Fields{"event": "admin.verify_user", "user_id": c.Param("id")}).Info("audit")
