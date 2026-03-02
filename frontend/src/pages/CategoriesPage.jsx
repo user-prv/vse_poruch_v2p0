@@ -5,6 +5,18 @@ import { AsyncState } from '../shared/AsyncState';
 
 const PREVIEW_LIMIT = 50;
 
+function normalizeCategories(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+
+  return [];
+}
+
 export function CategoriesPage() {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -26,7 +38,7 @@ export function CategoriesPage() {
           apiClient.get('/listings', { params: { page: 1, limit: PREVIEW_LIMIT } }),
         ]);
         if (active) {
-          setCategories(categoriesResponse.data || []);
+          setCategories(normalizeCategories(categoriesResponse.data));
           setListings(listingsResponse.data.items || []);
         }
       } catch (requestError) {
