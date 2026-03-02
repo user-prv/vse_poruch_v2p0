@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bufio"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -24,6 +26,8 @@ type Config struct {
 }
 
 func Load() Config {
+	loadDotEnv()
+
 	return Config{
 		Port:         getEnv("PORT", "8080"),
 		LogFormat:    getEnv("LOG_FORMAT", "json"),
@@ -40,6 +44,51 @@ func Load() Config {
 		DBConnTO:     time.Duration(getIntEnv("DB_CONN_TIMEOUT_SEC", 5)) * time.Second,
 		DBRetryCount: getIntEnv("DB_RETRY_COUNT", 3),
 	}
+}
+
+func loadDotEnv() {
+	for _, path := range []string{".env", "backend/.env"} {
+		if loadDotEnvFile(path) {
+			return
+		}
+	}
+}
+
+func loadDotEnvFile(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			continue
+		}
+
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+
+		value := strings.TrimSpace(parts[1])
+		value = strings.Trim(value, "\"")
+		value = strings.Trim(value, "'")
+		_ = os.Setenv(key, value)
+	}
+
+	return true
 }
 
 func getEnv(key, fallback string) string {
