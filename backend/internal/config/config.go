@@ -17,6 +17,7 @@ type Config struct {
 	DBUser       string
 	DBPassword   string
 	DBName       string
+	DBSSLMode    string
 	DBMaxOpen    int
 	DBMaxIdle    int
 	DBMaxLifeMin int
@@ -36,6 +37,7 @@ func Load() Config {
 		DBUser:       getEnv("DB_USER", "postgres"),
 		DBPassword:   getEnv("DB_PASSWORD", "postgres"),
 		DBName:       getEnv("DB_NAME", "vseporuch"),
+		DBSSLMode:    getEnv("DB_SSLMODE", "require"),
 		DBMaxOpen:    getIntEnv("DB_MAX_OPEN", 20),
 		DBMaxIdle:    getIntEnv("DB_MAX_IDLE", 10),
 		DBMaxLifeMin: getIntEnv("DB_MAX_LIFE_MIN", 30),
