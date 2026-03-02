@@ -1,0 +1,110 @@
+.dashboard-wrap{
+  max-width:1100px;
+  margin:30px auto;
+  padding:16px;
+}
+
+/* =========================
+   DESKTOP: таблиця як є
+   ========================= */
+.dashboard-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.dashboard-table th,
+.dashboard-table td{
+  padding:10px;
+  border-top:1px solid var(--border);
+  text-align:left;
+  font-size:14px;
+  vertical-align:top;
+}
+
+.dashboard-table th{
+  background:#f9fafb;
+  font-weight:900;
+}
+
+.dashboard-thumb{
+  width:92px;
+  height:72px;
+  object-fit:cover;
+  border-radius:10px;
+  border:1px solid var(--border);
+}
+
+/* кнопки дій */
+.dashboard-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+/* =========================
+   MOBILE: таблиця → картки
+   ========================= */
+@media (max-width: 900px){
+
+  /* ховаємо заголовки */
+  .dashboard-table thead{
+    display:none;
+  }
+
+  .dashboard-table,
+  .dashboard-table tbody,
+  .dashboard-table tr,
+  .dashboard-table td{
+    display:block;
+    width:100%;
+  }
+
+  /* кожен товар = картка */
+  .dashboard-table tr{
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-bottom:12px;
+    padding:12px;
+    background:#fff;
+  }
+
+  .dashboard-table td{
+    border:none;
+    padding:6px 0;
+  }
+
+  /* фото */
+  .dashboard-thumb{
+    width:100%;
+    height:180px;
+    margin-bottom:8px;
+  }
+
+  /* назва */
+  .dashboard-title{
+    font-weight:900;
+    font-size:16px;
+    margin-bottom:4px;
+  }
+
+  /* ціна */
+  .dashboard-price{
+    font-weight:800;
+    margin-bottom:8px;
+  }
+
+  /* дії — ГОЛОВНЕ */
+  .dashboard-actions{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+  }
+
+  .dashboard-actions a,
+  .dashboard-actions button{
+    flex:1;
+    height:44px;
+    border-radius:12px;
+    font-weight:900;
+  }
+}

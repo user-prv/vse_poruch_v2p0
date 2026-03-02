@@ -1,0 +1,221 @@
+/* item.css — тільки сторінка товару */
+
+/* =========================
+   1) Topbar
+   ========================= */
+.item-topbar{ justify-content:space-between; }
+
+/* =========================
+   2) Page layout: ТОВАР | ПРОДАВЕЦЬ
+   ========================= */
+.item-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px; /* товар | продавець */
+  gap: 12px;
+  align-items: start;
+}
+
+/* мобільний: 1 колонка */
+@media (max-width: 900px){
+  .item-grid{ grid-template-columns: 1fr; }
+}
+
+/* страховка: порядок колонок */
+@media (min-width: 901px){
+  .item-grid > .card:first-child{ grid-column: 1 / 2; }
+  .item-grid > .card:last-child{ grid-column: 2 / 3; }
+}
+
+/* sticky продавець справа */
+@media (min-width: 901px){
+  .item-seller{
+    position: sticky;
+    top: 16px;
+  }
+}
+
+/* =========================
+   3) Typography
+   ========================= */
+.item-title{
+  font-weight: 900;
+  font-size: 18px;
+  margin-top: 6px;
+}
+
+.item-price{
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.item-desc-text{
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* =========================
+   4) INSIDE PRODUCT: Галерея | Інфо (desktop)
+   ========================= */
+.item-product-row{
+  display: grid;
+  grid-template-columns: minmax(0, 720px) minmax(0, 1fr); /* галерея | інфо */
+  gap: 16px;
+  align-items: start;
+}
+
+/* на мобільному: все в колонку */
+@media (max-width: 900px){
+  .item-product-row{
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* блок інфо справа */
+.item-info{
+  min-width: 0;
+}
+
+/* на мобільному інфо буде під галереєю */
+@media (max-width: 900px){
+  .item-info{ margin-top: 6px; }
+}
+
+/* =========================
+   5) Gallery sizing (НЕ гігантська)
+   ========================= */
+.item-gallery{
+  width: 100%;
+  min-width: 0;
+}
+
+/* “сцена” з фіксованою висотою */
+.item-stage{
+  position: relative;
+  width: 100%;
+  max-width: 720px;         /* обмеження ширини галереї на десктопі */
+  height: 420px;            /* десктоп висота */
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;                /* НЕ центруємо */
+}
+
+/* саме фото — завжди вписується */
+.item-main-photo{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* mobile нижча сцена */
+@media (max-width: 900px){
+  .item-stage{
+    max-width: 100%;
+    height: 300px;
+  }
+}
+
+/* =========================
+   6) Nav buttons (prev/next)
+   ========================= */
+.item-nav{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(17,24,39,.85);
+  color: #fff;
+  font-weight: 900;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.item-nav--prev{ left: 10px; }
+.item-nav--next{ right: 10px; }
+
+.item-counter{
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* =========================
+   7) Thumbs: горизонтальний скрол
+   ========================= */
+.item-thumbs{
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.item-thumb-btn{
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.item-thumb-btn.is-active{
+  border-color: var(--primary);
+}
+
+.item-thumb{
+  display: block;
+  width: 72px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+/* =========================
+   8) Seller block (аватар не гігантський)
+   ========================= */
+.item-seller-head{ align-items: flex-start; }
+
+.seller-avatar{
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  flex: 0 0 auto;
+  display: block;
+}
+.seller-avatar--empty{
+  background: #f3f4f6;
+}
+
+.seller-meta{ flex: 1; min-width: 0; }
+.seller-name{ font-weight: 900; }
+.seller-value{ font-weight: 800; }
+.seller-about{ white-space: pre-wrap; word-break: break-word; }
+
+/* =========================
+   9) Description spacing (візуально “доросло”)
+   ========================= */
+.item-desc{
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}

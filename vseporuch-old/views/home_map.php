@@ -1,0 +1,3 @@
+<div class="card">
+  <div id="map"></div>
+</div>

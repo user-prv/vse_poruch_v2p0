@@ -1,0 +1,463 @@
+:root {
+  --border:#e5e7eb;
+  --muted:#6b7280;
+  --dark:#111827;
+  --primary:#2563eb;
+  --bg:#fafafa;
+}
+
+* { box-sizing:border-box; }
+
+body {
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:var(--bg);
+  color:#111827;
+}
+
+/* ===== базові блоки ===== */
+
+.card {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.pad { padding:12px; }
+.border-top { border-top:1px solid var(--border); }
+
+.row {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.mt10 { margin-top:10px; }
+.mt12 { margin-top:12px; }
+
+.muted {
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* ===== кнопки ===== */
+
+button,
+a.btn {
+  height:38px;
+  border-radius:10px;
+  border:0;
+  padding:0 12px;
+  font-size:14px;
+  font-weight:800;
+  background:var(--dark);
+  color:#fff;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  white-space:nowrap;
+}
+
+button:hover,
+a.btn:hover { background:#0b1220; }
+
+a.btn.primary {
+  background:var(--primary);
+}
+a.btn.primary:hover {
+  background:#1d4ed8;
+}
+
+/* ===== inputs ===== */
+
+input,
+select {
+  height:38px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  padding:0 10px;
+  font-size:14px;
+  background:#fff;
+}
+
+input { flex:1; min-width:180px; }
+
+/* ===== заголовки ===== */
+
+h1,h2,h3,h4 { margin:0; font-weight:900; }
+
+/* =========================
+   TOP NAV (desktop)
+   ========================= */
+.topnav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.topnav__left{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.topnav__right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.topnav__link{
+  height: 38px;
+  border-radius:10px;
+  padding:0 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  font-weight: 800;
+  border:1px solid var(--border);
+  color: var(--dark);
+  background:#fff;
+}
+
+.topnav__link:hover{
+  background:#f3f4f6;
+}
+
+.topnav__link--primary{
+  background: var(--primary);
+  color:#fff;
+  border:0;
+}
+.topnav__link--primary:hover{
+  background:#1d4ed8;
+}
+
+.topnav__link--muted{
+  color: var(--muted);
+}
+
+.topnav__link[aria-disabled="true"]{
+  opacity:.55;
+  pointer-events:none;
+}
+
+/* =========================
+   MOBILE BOTTOM NAV
+   ========================= */
+.mnav{
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 64px;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  display: none;
+  z-index: 9999;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mnav__item{
+  flex: 1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap: 4px;
+  text-decoration:none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mnav__ico{ font-size: 20px; line-height: 1; }
+.mnav__txt{ line-height: 1; }
+
+.mnav__item.is-active{ color: var(--dark); }
+
+/* показуємо тільки на мобільному */
+@media (max-width: 900px){
+  .mnav{ display:flex; }
+  body{ padding-bottom: 74px; } /* щоб контент не залазив під меню */
+}
+
+/* ===============================
+   Mobile bottom navigation (icons via CSS)
+   =============================== */
+
+.mnav{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 64px;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  z-index: 1000;
+  display: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mnav__item{
+  flex: 1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap: 4px;
+  text-decoration:none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mnav__item.is-active{
+  color: var(--primary);
+}
+
+.mnav__ico{
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 22px 22px;
+}
+
+/* === ICON PATHS === */
+
+/* Головна */
+.mnav__item:nth-child(1) .mnav__ico{
+  background-image: url("/assets/icons/home.svg");
+}
+
+/* Категорії */
+.mnav__item:nth-child(2) .mnav__ico{
+  background-image: url("/assets/icons/categories.svg");
+}
+
+/* Інфо */
+.mnav__item:nth-child(3) .mnav__ico{
+  background-image: url("/assets/icons/info.svg");
+}
+
+/* Кабінет */
+.mnav__item:nth-child(4) .mnav__ico{
+  background-image: url("/assets/icons/user.svg");
+}
+
+/* Mobile only */
+@media (max-width: 900px){
+  .mnav{ display:flex; }
+  body{ padding-bottom: 72px; }
+}
+
+@media (min-width: 901px){
+  .mnav{ display:none; }
+}
+
+/* ================================
+   DESKTOP TOP MENU (показуємо тільки на ПК)
+   ================================ */
+
+.topnav {
+  display: none;               /* за замовчуванням ховаємо (мобільний) */
+  position: sticky;
+  top: 0;
+  z-index: 2000;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+
+.topnav__inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.topnav__brand{
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--dark);
+  text-decoration: none;
+}
+
+.topnav__links{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.topnav__link{
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--dark);
+  text-decoration: none;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topnav__link:hover{
+  background: #f9fafb;
+}
+
+.topnav__link.is-active{
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,.12) inset;
+}
+
+/* ПК: показуємо топ-меню, мобільне не чіпаємо */
+@media (min-width: 901px){
+  .topnav{ display: block; }
+}
+
+/* =========================================================
+   DESKTOP TOP MENU (header.php -> .topnav)
+   - не чіпає мобільне меню знизу
+   ========================================================= */
+
+/* за замовчуванням ховаємо (показуємо тільки на десктопі) */
+.topnav{ display:none; }
+
+@media (min-width: 901px){
+  .topnav{
+    display:block;
+    position: sticky;
+    top: 0;
+    z-index: 9998;
+    background: rgba(250,250,250,.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topnav__inner{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+
+  .topnav__brand{
+    font-weight: 900;
+    font-size: 16px;
+    color: var(--dark);
+    text-decoration: none;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .topnav__brand:hover{
+    background:#fff;
+    border:1px solid var(--border);
+  }
+
+  .topnav__links{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content:flex-end;
+  }
+
+  /* посилання меню */
+  .topnav__links a{
+    display:inline-flex;
+    align-items:center;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 12px;
+    text-decoration:none;
+    color: var(--dark);
+    font-weight: 800;
+    font-size: 13px;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+
+  .topnav__links a:hover{
+    background:#fff;
+    border-color: var(--border);
+  }
+
+  /* активний пункт */
+  .topnav__links a.is-active{
+    background: var(--dark);
+    color:#fff;
+    border-color: transparent;
+  }
+
+  /* робимо трохи “повітря” сторінці, щоб меню не прилипало до контенту */
+  .wrap{
+    padding-top: 12px;
+  }
+}
+
+/* =========================
+   DESKTOP TOP MENU
+   ========================= */
+
+.dnav {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .dnav {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+
+    height: 56px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dnav__inner {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .dnav__items {
+    display: flex;
+    gap: 20px;
+  }
+
+  .dnav__item {
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .dnav__item.is-active {
+    color: var(--primary);
+  }
+}
