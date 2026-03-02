@@ -5,6 +5,18 @@ import { AsyncState } from '../shared/AsyncState';
 
 const PAGE_SIZE = 10;
 
+function normalizeCategories(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+
+  return [];
+}
+
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -42,7 +54,7 @@ export function HomePage() {
 
         setListings(listingsResponse.data.items || []);
         setTotal(listingsResponse.data.total || 0);
-        setCategories(categoriesResponse.data || []);
+        setCategories(normalizeCategories(categoriesResponse.data));
       } catch (requestError) {
         if (!active) {
           return;
