@@ -1,23 +1,23 @@
 package modules
 
 type User struct {
-	ID    uint   `gorm:"primaryKey"`
+	ID    uint64 `gorm:"primaryKey;autoIncrement;type:bigint unsigned"`
 	Email string `gorm:"size:255;uniqueIndex;not null"`
 	Role  string `gorm:"size:32;index;default:user"`
 }
 
 type Category struct {
-	ID       uint   `gorm:"primaryKey"`
-	Name     string `gorm:"not null"`
-	ParentID *uint
+	ID       uint64  `gorm:"primaryKey;autoIncrement;type:bigint unsigned"`
+	Name     string  `gorm:"not null"`
+	ParentID *uint64 `gorm:"type:bigint unsigned"`
 	IconPath string
 }
 
 type Listing struct {
-	ID         uint   `gorm:"primaryKey"`
+	ID         uint64 `gorm:"primaryKey;autoIncrement;type:bigint unsigned"`
 	Title      string `gorm:"size:255;index;not null"`
 	Body       string
-	AuthorID   uint
-	CategoryID uint
+	AuthorID   uint64 `gorm:"type:bigint unsigned;not null"`
+	CategoryID uint64 `gorm:"type:bigint unsigned;not null"`
 	Status     string `gorm:"size:32;index;default:pending"`
 }
