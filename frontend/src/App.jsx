@@ -15,6 +15,7 @@ import { useAppStore } from './shared/store';
 export function App() {
   const navigate = useNavigate();
   const { isAuthenticated, user, clearSession } = useAppStore();
+  const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
 
   const handleLogout = async () => {
     try {
@@ -32,7 +33,7 @@ export function App() {
       <header>
         <nav>
           <Link to="/">Головна</Link> | <Link to="/categories">Категорії</Link> | <Link to="/dashboard">Dashboard</Link> |{' '}
-          <Link to="/admin">Admin</Link>
+          {isAdmin ? <Link to="/admin">Admin</Link> : <span aria-hidden="true">Admin</span>}
         </nav>
         {isAuthenticated ? (
           <div>
@@ -58,7 +59,7 @@ export function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
         </Route>
 
-        <Route element={<RouteGuard requireAdmin />}>
+        <Route element={<RouteGuard requireAdmin allowedRoles={['admin']} />}>
           <Route path="/admin" element={<AdminPage />} />
         </Route>
       </Routes>
