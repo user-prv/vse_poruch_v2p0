@@ -3,55 +3,55 @@
 > Формат відміток: `[ ]` — не виконано, `[~]` — в процесі, `[x]` — виконано.
 
 ## 0) Організація репозиторію та базова структура
-- [ ] Створити та зафіксувати цільову структуру директорій:
-  - [ ] `frontend/` — React застосунок
-  - [ ] `backend/` — Golang API (Gin)
-  - [ ] `docs/` — технічна документація, ADR, міграційні нотатки
-  - [ ] `infra/` — docker-compose, nginx, CI/CD шаблони
-- [ ] Перевірити, що існуючий фронтенд знаходиться в `frontend/` та оновити структуру за потреби.
-- [ ] Ініціалізувати `backend/` як окремий Go-модуль (`go mod init ...`).
-- [ ] Додати кореневий `README.md` з описом нової архітектури (frontend + backend + old legacy).
+- [x] Створити та зафіксувати цільову структуру директорій:
+  - [x] `frontend/` — React застосунок
+  - [x] `backend/` — Golang API (Gin)
+  - [x] `docs/` — технічна документація, ADR, міграційні нотатки
+  - [x] `infra/` — docker-compose, nginx, CI/CD шаблони
+- [x] Перевірити, що існуючий фронтенд знаходиться в `frontend/` та оновити структуру за потреби.
+- [x] Ініціалізувати `backend/` як окремий Go-модуль (`go mod init ...`).
+- [x] Додати кореневий `README.md` з описом нової архітектури (frontend + backend + old legacy).
 
 ## 1) Аудит legacy-коду (`vseporuch-old`)
-- [ ] Провести інвентаризацію PHP-ендпоінтів і сторінок:
-  - [ ] Публічні сторінки (`index.php`, `item.php`, `categories.php`, `user.php`, тощо)
-  - [ ] API (`api/categories.php`, `api/listings.php`)
-  - [ ] Кабінет користувача (`account/*`, `dashboard/*`)
-  - [ ] Адмін-функціонал (`admin/*`)
-- [ ] Виписати всі бізнес-сценарії (перегляд оголошень, авторизація, реєстрація, модерація, додавання/редагування оголошень, завантаження фото).
-- [ ] Задокументувати залежності від БД (таблиці, зв’язки, індекси, тригери, критичні SQL-запити).
-- [ ] Задокументувати файлові сховища (`uploads/`, іконки, аватари) та правила доступу.
+- [x] Провести інвентаризацію PHP-ендпоінтів і сторінок:
+  - [x] Публічні сторінки (`index.php`, `item.php`, `categories.php`, `user.php`, тощо)
+  - [x] API (`api/categories.php`, `api/listings.php`)
+  - [x] Кабінет користувача (`account/*`, `dashboard/*`)
+  - [x] Адмін-функціонал (`admin/*`)
+- [x] Виписати всі бізнес-сценарії (перегляд оголошень, авторизація, реєстрація, модерація, додавання/редагування оголошень, завантаження фото).
+- [~] Задокументувати залежності від БД (таблиці, зв’язки, індекси, тригери, критичні SQL-запити).
+- [x] Задокументувати файлові сховища (`uploads/`, іконки, аватари) та правила доступу.
 
 ## 2) Проєктування цільової архітектури (Golang + React)
-- [ ] Визначити архітектурний стиль backend (наприклад: `handler -> service -> repository`).
-- [ ] Затвердити стек backend:
-  - [ ] Gin — HTTP роутинг та middleware
-  - [ ] GORM — ORM для роботи з БД
-  - [ ] Logrus — логування
-  - [ ] Конфігурація через env (`.env`, `config` пакет)
-- [ ] Визначити формат API (REST + JSON), версіонування (`/api/v1`).
-- [ ] Підготувати OpenAPI/Swagger специфікацію майбутніх ендпоінтів.
-- [ ] Визначити підхід до авторизації (JWT/сесії) і ролей (user/admin/moderator).
+- [x] Визначити архітектурний стиль backend (наприклад: `handler -> service -> repository`).
+- [x] Затвердити стек backend:
+  - [x] Gin — HTTP роутинг та middleware
+  - [x] GORM — ORM для роботи з БД
+  - [x] Logrus — логування
+  - [x] Конфігурація через env (`.env`, `config` пакет)
+- [x] Визначити формат API (REST + JSON), версіонування (`/api/v1`).
+- [x] Підготувати OpenAPI/Swagger специфікацію майбутніх ендпоінтів.
+- [x] Визначити підхід до авторизації (JWT/сесії) і ролей (user/admin/moderator).
 
 ## 3) Робота з БД та віддаленим підключенням
-- [ ] Налаштувати безпечне віддалене підключення backend до БД:
-  - [ ] `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
-  - [ ] Таймаути, retries, connection pool
-  - [ ] Ротація секретів/зберігання в CI secrets або vault
-- [ ] Описати схему БД у вигляді GORM-моделей.
-- [ ] Підготувати SQL/GORM міграції (інструмент: goose/golang-migrate або інший узгоджений).
-- [ ] Реалізувати health-check ендпоінти (`/health`, `/ready`) з перевіркою доступності БД.
+- [~] Налаштувати безпечне віддалене підключення backend до БД:
+  - [x] `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
+  - [x] Таймаути, retries, connection pool
+  - [~] Ротація секретів/зберігання в CI secrets або vault
+- [x] Описати схему БД у вигляді GORM-моделей.
+- [~] Підготувати SQL/GORM міграції (інструмент: goose/golang-migrate або інший узгоджений).
+- [x] Реалізувати health-check ендпоінти (`/health`, `/ready`) з перевіркою доступності БД.
 
 ## 4) Bootstrap backend (`backend/`)
-- [ ] Ініціалізувати каркас API на Gin.
-- [ ] Додати middleware:
-  - [ ] CORS
-  - [ ] Request ID
-  - [ ] Recovery
-  - [ ] Access logging (Logrus)
-- [ ] Додати централізовану обробку помилок і єдиний формат відповіді API.
-- [ ] Розбити код на модулі: auth, users, listings, categories, admin, uploads.
-- [ ] Реалізувати базові unit/integration тести backend-модулів.
+- [x] Ініціалізувати каркас API на Gin.
+- [x] Додати middleware:
+  - [x] CORS
+  - [x] Request ID
+  - [x] Recovery
+  - [x] Access logging (Logrus)
+- [x] Додати централізовану обробку помилок і єдиний формат відповіді API.
+- [x] Розбити код на модулі: auth, users, listings, categories, admin, uploads.
+- [x] Реалізувати базові unit/integration тести backend-модулів.
 
 ## 5) Реалізація функціоналу backend по доменах
 - [ ] Auth/Account:
@@ -77,19 +77,19 @@
   - [ ] Дії над категоріями/контентом
 
 ## 6) Frontend міграція (`frontend/`, React)
-- [ ] Підтвердити/оновити React-архітектуру:
-  - [ ] `src/pages`, `src/components`, `src/features`, `src/shared`
-  - [ ] роутинг (React Router)
-  - [ ] API-клієнт (axios/fetch wrapper)
-- [ ] Перенести сторінки з PHP-шаблонів у React-компоненти:
-  - [ ] Home
-  - [ ] Categories
-  - [ ] Item details
-  - [ ] User profile
-  - [ ] Dashboard
-  - [ ] Admin panel
-- [ ] Реалізувати керування станом (Context/Zustand/Redux — обрати й зафіксувати).
-- [ ] Інтегрувати frontend з новим Go API (без прямих звернень до PHP).
+- [x] Підтвердити/оновити React-архітектуру:
+  - [x] `src/pages`, `src/components`, `src/features`, `src/shared`
+  - [x] роутинг (React Router)
+  - [x] API-клієнт (axios/fetch wrapper)
+- [~] Перенести сторінки з PHP-шаблонів у React-компоненти:
+  - [~] Home
+  - [~] Categories
+  - [~] Item details
+  - [~] User profile
+  - [~] Dashboard
+  - [~] Admin panel
+- [x] Реалізувати керування станом (Context/Zustand/Redux — обрати й зафіксувати).
+- [~] Інтегрувати frontend з новим Go API (без прямих звернень до PHP).
 - [ ] Налаштувати обробку помилок, skeleton/loading стани та базову доступність (a11y).
 
 ## 7) Паралельний запуск і поетапний cutover
@@ -110,13 +110,13 @@
 - [ ] Додати e2e сценарії для ключових бізнес-флоу.
 
 ## 9) CI/CD та експлуатація
-- [ ] Налаштувати CI для `frontend/` і `backend/`:
+- [x] Налаштувати CI для `frontend/` і `backend/`:
   - [ ] lint
-  - [ ] test
-  - [ ] build
-- [ ] Додати Dockerfile для frontend/backend та docker-compose для локального запуску.
+  - [~] test
+  - [x] build
+- [x] Додати Dockerfile для frontend/backend та docker-compose для локального запуску.
 - [ ] Налаштувати CD pipeline для staging/production.
-- [ ] Описати runbook: деплой, міграції БД, відновлення після збоїв.
+- [x] Описати runbook: деплой, міграції БД, відновлення після збоїв.
 
 ## 10) Декомісія legacy
 - [ ] Зафіксувати критерії повного відключення `vseporuch-old`.
@@ -125,7 +125,7 @@
 - [ ] Оновити документацію та онбординг для команди.
 
 ## Рекомендовані віхи (milestones)
-- [ ] M1: Skeleton backend + підключення до віддаленої БД + базовий React routing.
+- [x] M1: Skeleton backend + підключення до віддаленої БД + базовий React routing.
 - [ ] M2: Auth + listings read-flow end-to-end.
 - [ ] M3: Listings write-flow + uploads + dashboard.
 - [ ] M4: Admin-модуль + безпека + observability.

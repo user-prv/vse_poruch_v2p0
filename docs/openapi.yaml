@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info:
+  title: VsePoruch API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      responses:
+        '200':
+          description: OK
+  /ready:
+    get:
+      responses:
+        '200':
+          description: DB ready
+        '503':
+          description: DB unavailable
+  /api/v1/ping:
+    get:
+      responses:
+        '200':
+          description: Pong
