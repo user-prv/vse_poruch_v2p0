@@ -17,7 +17,6 @@ type Config struct {
 	DBUser       string
 	DBPassword   string
 	DBName       string
-	DBSSLMode    string
 	DBMaxOpen    int
 	DBMaxIdle    int
 	DBMaxLifeMin int
@@ -33,11 +32,10 @@ func Load() Config {
 		LogFormat:    getEnv("LOG_FORMAT", "json"),
 		LogLevel:     getEnv("LOG_LEVEL", "info"),
 		DBHost:       getEnv("DB_HOST", "127.0.0.1"),
-		DBPort:       getEnv("DB_PORT", "5432"),
-		DBUser:       getEnv("DB_USER", "postgres"),
-		DBPassword:   getEnv("DB_PASSWORD", "postgres"),
+		DBPort:       getEnv("DB_PORT", "3306"),
+		DBUser:       getEnv("DB_USER", "root"),
+		DBPassword:   getEnv("DB_PASSWORD", "root"),
 		DBName:       getEnv("DB_NAME", "vseporuch"),
-		DBSSLMode:    getEnv("DB_SSLMODE", "disable"),
 		DBMaxOpen:    getIntEnv("DB_MAX_OPEN", 20),
 		DBMaxIdle:    getIntEnv("DB_MAX_IDLE", 10),
 		DBMaxLifeMin: getIntEnv("DB_MAX_LIFE_MIN", 30),

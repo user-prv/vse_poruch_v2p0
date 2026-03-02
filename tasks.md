@@ -35,7 +35,7 @@
 
 ## 3) Робота з БД та віддаленим підключенням
 - [x] Налаштувати безпечне віддалене підключення backend до БД:
-  - [x] `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`
+  - [x] `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
   - [x] Таймаути, retries, connection pool
   - [x] Ротація секретів/зберігання в CI secrets або vault
 - [x] Описати схему БД у вигляді GORM-моделей.
