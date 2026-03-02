@@ -13,6 +13,6 @@
 
 ## Робота з секретами
 - Локально: `.env` (тільки для dev), без коміту в репозиторій.
-- CI: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` через GitHub Actions secrets.
+- CI: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` через GitHub Actions secrets.
 - Продакшн: Vault/Secrets Manager з ротацією мінімум раз на 90 днів.
 - Ротація без даунтайму: dual credentials (старий+новий), перевірка read/write, відключення старого секрету.
