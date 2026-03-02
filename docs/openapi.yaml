@@ -1,22 +1,722 @@
 openapi: 3.0.3
 info:
   title: VsePoruch API
-  version: 0.1.0
+  version: 0.2.0
+  description: |
+    Фактичний контракт backend (Gin + GORM).
+    Всі відповіді повертаються у форматі Envelope: `{ data?: any, error?: string }`.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Health
+  - name: Auth
+  - name: Profile
+  - name: Listings
+  - name: Categories
+  - name: Uploads
+  - name: Admin
 paths:
   /health:
     get:
+      tags: [Health]
+      summary: Liveness probe
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeObject'
+
   /ready:
     get:
+      tags: [Health]
+      summary: Readiness probe (DB)
       responses:
         '200':
           description: DB ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeObject'
         '503':
           description: DB unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
   /api/v1/ping:
     get:
+      tags: [Health]
+      summary: Ping endpoint
       responses:
         '200':
           description: Pong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeObject'
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuthRegisterData'
+        '400':
+          description: Invalid payload or user exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Auth token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuthLoginData'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeObject'
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset email (stub)
+      responses:
+        '200':
+          description: Reset notification acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeObject'
+
+  /api/v1/profile/{id}:
+    get:
+      tags: [Profile]
+      summary: Get user profile by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/listings:
+    get:
+      tags: [Listings]
+      summary: List listings
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/ListingStatus'
+        - in: query
+          name: author_id
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Paginated listings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeListingListData'
+        '400':
+          description: Invalid status filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    post:
+      tags: [Listings]
+      summary: Create listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingRequest'
+      responses:
+        '201':
+          description: Listing created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeListing'
+        '400':
+          description: Invalid request/status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/listings/{id}:
+    get:
+      tags: [Listings]
+      summary: Get listing by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Listing found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeListing'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    put:
+      tags: [Listings]
+      summary: Update listing
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingRequest'
+      responses:
+        '200':
+          description: Listing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeListing'
+        '400':
+          description: Invalid request/status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    delete:
+      tags: [Listings]
+      summary: Soft delete listing
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Listing marked as deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeDeleteListingData'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/categories:
+    get:
+      tags: [Categories]
+      summary: List categories
+      responses:
+        '200':
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCategoryList'
+    post:
+      tags: [Categories]
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCategory'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/categories/{id}:
+    put:
+      tags: [Categories]
+      summary: Update category
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCategory'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    delete:
+      tags: [Categories]
+      summary: Delete category
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeDeleteCategoryData'
+
+  /api/v1/uploads/photo:
+    post:
+      tags: [Uploads]
+      summary: Upload listing photo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Photo uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUploadPhotoData'
+        '400':
+          description: Missing file / invalid type / max size exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '500':
+          description: Save failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/admin/listings/{id}/moderate:
+    post:
+      tags: [Admin]
+      summary: Moderate listing status
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/ListingStatus'
+      responses:
+        '200':
+          description: Listing moderated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeListing'
+        '400':
+          description: Invalid payload/status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /api/v1/admin/users/{id}/verify:
+    post:
+      tags: [Admin]
+      summary: Verify user (non-persistent stub)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: User marked verified in response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeVerifyUserData'
+
+  /api/v1/admin/users/{id}/block:
+    post:
+      tags: [Admin]
+      summary: Block user (non-persistent stub)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: User marked blocked in response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBlockUserData'
+
+  /api/v1/admin/categories/{id}/icon:
+    post:
+      tags: [Admin]
+      summary: Set category icon (acknowledgement stub)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Category icon update acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeSetCategoryIconData'
+
+components:
+  parameters:
+    IdPath:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    EnvelopeObject:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    EnvelopeError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    AuthRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    User:
+      type: object
+      properties:
+        ID:
+          type: integer
+        Email:
+          type: string
+        Role:
+          type: string
+
+    ListingStatus:
+      type: string
+      enum: [active, blocked, deleted, pending]
+
+    Listing:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        author_id:
+          type: integer
+        category_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+        photo_paths:
+          type: array
+          items:
+            type: string
+
+    ListingRequest:
+      type: object
+      required: [title, author_id, category_id]
+      properties:
+        title:
+          type: string
+          minLength: 3
+        body:
+          type: string
+        author_id:
+          type: integer
+          minimum: 1
+        category_id:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+        photo_paths:
+          type: array
+          items:
+            type: string
+
+    Category:
+      type: object
+      properties:
+        ID:
+          type: integer
+        Name:
+          type: string
+        ParentID:
+          type: integer
+          nullable: true
+        IconPath:
+          type: string
+
+    CategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        icon_path:
+          type: string
+
+    EnvelopeAuthRegisterData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+
+    EnvelopeAuthLoginData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+
+    EnvelopeUser:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+
+    EnvelopeListing:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Listing'
+
+    EnvelopeListingListData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Listing'
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+
+    EnvelopeDeleteListingData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+            status:
+              $ref: '#/components/schemas/ListingStatus'
+
+    EnvelopeCategory:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Category'
+
+    EnvelopeCategoryList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    EnvelopeDeleteCategoryData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+
+    EnvelopeUploadPhotoData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            path:
+              type: string
+
+    EnvelopeVerifyUserData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            user_id:
+              type: string
+            verified:
+              type: boolean
+
+    EnvelopeBlockUserData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            user_id:
+              type: string
+            blocked:
+              type: boolean
+
+    EnvelopeSetCategoryIconData:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            category_id:
+              type: string
+            updated:
+              type: boolean
