@@ -1,0 +1,28 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare release artifact
+        run: |
+          echo "Build and push Docker images for ${{ inputs.environment }}"
+      - name: Run DB migrations
+        run: |
+          echo "Run migrations against ${{ inputs.environment }} database"
+      - name: Deploy application
+        run: |
+          echo "Deploy frontend and backend to ${{ inputs.environment }}"
