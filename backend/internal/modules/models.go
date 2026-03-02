@@ -20,4 +20,5 @@ type Listing struct {
 	AuthorID   uint   `gorm:"not null"`
 	CategoryID uint   `gorm:"not null"`
 	Status     string `gorm:"size:32;index;default:pending"`
+	PhotoPaths string `gorm:"type:text;default:'[]'"`
 }

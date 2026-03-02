@@ -1,0 +1,2 @@
+ALTER TABLE listings
+ADD COLUMN IF NOT EXISTS photo_paths TEXT NOT NULL DEFAULT '[]';
