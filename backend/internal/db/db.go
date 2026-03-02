@@ -5,16 +5,16 @@ import (
 	"time"
 
 	"github.com/vseporuch/v2/backend/internal/config"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func Connect(cfg config.Config) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local&charset=utf8mb4&timeout=%ds",
-		cfg.DBUser,
-		cfg.DBPassword,
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=%d",
 		cfg.DBHost,
 		cfg.DBPort,
+		cfg.DBUser,
+		cfg.DBPassword,
 		cfg.DBName,
 		int(cfg.DBConnTO.Seconds()),
 	)
@@ -22,7 +22,7 @@ func Connect(cfg config.Config) (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 	for i := 0; i < cfg.DBRetryCount; i++ {
-		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
 			sqlDB, sqlErr := db.DB()
 			if sqlErr != nil {

@@ -1,15 +1,15 @@
 version: '3.9'
 services:
   db:
-    image: mysql:8.4
-    command: --default-authentication-plugin=mysql_native_password
+    image: postgres:16-alpine
     environment:
-      MYSQL_DATABASE: vseporuch
-      MYSQL_ROOT_PASSWORD: root
+      POSTGRES_DB: vseporuch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
 
   backend:
     build:
@@ -20,9 +20,9 @@ services:
       LOG_FORMAT: json
       LOG_LEVEL: info
       DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: root
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       DB_NAME: vseporuch
     depends_on:
       - db
@@ -53,4 +53,4 @@ services:
       - "5173:80"
 
 volumes:
-  mysql_data:
+  postgres_data:
