@@ -137,6 +137,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   useEffect(() => {
     let active = true;
@@ -144,8 +145,13 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
     async function loadContext() {
       try {
         const categoriesResponse = await apiClient.get('/categories');
+        const normalizedCategories = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : Array.isArray(categoriesResponse.data?.items)
+            ? categoriesResponse.data.items
+            : [];
         if (active) {
-          setCategories(categoriesResponse.data || []);
+          setCategories(normalizedCategories);
         }
         if (editId) {
           const { data } = await apiClient.get(`/listings/${editId}`);
@@ -156,7 +162,8 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
               category_id: String(data.category_id || ''),
               status: data.status || 'pending',
             });
-            setPhotos((data.photo_paths || []).map((path, idx) => ({ id: `${path}-${idx}`, path })));
+            const normalizedPhotos = Array.isArray(data.photo_paths) ? data.photo_paths : [];
+            setPhotos(normalizedPhotos.map((path, idx) => ({ id: `${path}-${idx}`, path })));
           }
         } else if (active) {
           setForm({ title: '', body: '', category_id: '', status: 'pending' });
@@ -288,7 +295,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
             onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
           >
             <option value="">— Оберіть категорію —</option>
-            {categories.map((category) => (
+            {safeCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
