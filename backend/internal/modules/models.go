@@ -19,6 +19,10 @@ type Listing struct {
 	Body       string
 	AuthorID   uint   `gorm:"not null"`
 	CategoryID uint   `gorm:"not null"`
+	Price      uint   `gorm:"not null;default:0"`
+	Currency   string `gorm:"size:8;not null;default:UAH"`
+	Latitude   *float64
+	Longitude  *float64
 	Status     string `gorm:"size:32;index;default:pending"`
 	PhotoPaths string `gorm:"type:text;default:'[]'"`
 }

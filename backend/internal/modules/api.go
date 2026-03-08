@@ -52,6 +52,10 @@ func listingToResponse(listing Listing) gin.H {
 		"body":        listing.Body,
 		"author_id":   listing.AuthorID,
 		"category_id": listing.CategoryID,
+		"price":       listing.Price,
+		"currency":    listing.Currency,
+		"lat":         listing.Latitude,
+		"lng":         listing.Longitude,
 		"status":      listing.Status,
 		"photo_paths": photoPaths,
 	}
@@ -149,9 +153,13 @@ type listingRequest struct {
 	Title      string   `json:"title" binding:"required,min=3"`
 	Body       string   `json:"body"`
 	AuthorID   uint     `json:"author_id" binding:"required"`
-	CategoryID uint     `json:"category_id" binding:"required"`
-	Status     string   `json:"status"`
-	PhotoPaths []string `json:"photo_paths"`
+	CategoryID uint      `json:"category_id" binding:"required"`
+	Price      uint      `json:"price"`
+	Currency   string    `json:"currency"`
+	Latitude   *float64  `json:"lat"`
+	Longitude  *float64  `json:"lng"`
+	Status     string    `json:"status"`
+	PhotoPaths []string  `json:"photo_paths"`
 }
 
 func (a *API) CreateListing(c *gin.Context) {
@@ -166,7 +174,11 @@ func (a *API) CreateListing(c *gin.Context) {
 		return
 	}
 	photoBytes, _ := json.Marshal(req.PhotoPaths)
-	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Status: status, PhotoPaths: string(photoBytes)}
+	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
+	if currency == "" {
+		currency = "UAH"
+	}
+	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Price: req.Price, Currency: currency, Latitude: req.Latitude, Longitude: req.Longitude, Status: status, PhotoPaths: string(photoBytes)}
 	if err := a.db.Create(&listing).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "cannot create listing")
 		return
@@ -241,7 +253,11 @@ func (a *API) UpdateListing(c *gin.Context) {
 		return
 	}
 	photoBytes, _ := json.Marshal(req.PhotoPaths)
-	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID, listing.Status, listing.PhotoPaths = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID, status, string(photoBytes)
+	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
+	if currency == "" {
+		currency = "UAH"
+	}
+	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID, listing.Price, listing.Currency, listing.Latitude, listing.Longitude, listing.Status, listing.PhotoPaths = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID, req.Price, currency, req.Latitude, req.Longitude, status, string(photoBytes)
 	a.db.Save(&listing)
 	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
