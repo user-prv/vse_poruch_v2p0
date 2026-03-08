@@ -1,4 +1,4 @@
-import { Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { ItemDetailsPage } from './pages/ItemDetailsPage';
@@ -29,22 +29,43 @@ export function App() {
   };
 
   return (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Головна</Link> | <Link to="/categories">Категорії</Link> | <Link to="/dashboard">Dashboard</Link> |{' '}
-          {isAdmin ? <Link to="/admin">Admin</Link> : <span aria-hidden="true">Admin</span>}
+    <div className="app-shell">
+      <header className="topbar">
+        <Link to="/" className="brand">
+          Поруч
+        </Link>
+
+        <nav className="topnav" aria-label="Головна навігація">
+          <NavLink to="/" end className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}>
+            Головна
+          </NavLink>
+          <NavLink to="/categories" className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}>
+            Категорії
+          </NavLink>
+          <NavLink to="/register" className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}>
+            Інфо
+          </NavLink>
+          <NavLink to="/dashboard" className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}>
+            Кабінет
+          </NavLink>
         </nav>
-        {isAuthenticated ? (
-          <div>
-            <span>Ви увійшли як {user?.email || 'користувач'}.</span> <button onClick={handleLogout}>Вийти</button>
-          </div>
-        ) : (
-          <div>
-            <Link to="/login">Вхід</Link> | <Link to="/register">Реєстрація</Link>
-          </div>
-        )}
       </header>
+
+      {isAuthenticated ? (
+        <div className="session-banner">
+          <span>Ви увійшли як {user?.email || 'користувач'}.</span>
+          <button type="button" onClick={handleLogout}>
+            Вийти
+          </button>
+          {isAdmin ? <Link to="/admin">Admin</Link> : null}
+        </div>
+      ) : (
+        <div className="session-banner">
+          <Link to="/login">Вхід</Link>
+          <span aria-hidden="true">•</span>
+          <Link to="/register">Реєстрація</Link>
+        </div>
+      )}
 
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -63,6 +84,6 @@ export function App() {
           <Route path="/admin" element={<AdminPage />} />
         </Route>
       </Routes>
-    </>
+    </div>
   );
 }
