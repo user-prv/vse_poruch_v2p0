@@ -44,9 +44,9 @@ a {
 
 .topnav-link {
   text-decoration: none;
-  padding: 12px 22px;
-  border-radius: 16px;
-  font-size: 30px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
 }
@@ -121,20 +121,20 @@ a {
 .status-filter-row select {
   flex: 1;
   border: 1px solid #d0d5dd;
-  border-radius: 14px;
-  padding: 11px 14px;
-  font-size: 24px;
+  border-radius: 7px;
+  padding: 6px 7px;
+  font-size: 12px;
 }
 
 .search-row button,
 .status-filter-row button,
 .pagination-row button {
   border: none;
-  border-radius: 14px;
+  border-radius: 7px;
   background: #0b1736;
   color: #fff;
-  padding: 0 18px;
-  font-size: 28px;
+  padding: 0 9px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -153,7 +153,7 @@ a {
 
 .status-filter-row label {
   font-weight: 700;
-  font-size: 17px;
+  font-size: 8.5px;
 }
 
 .status-filter-row select {
