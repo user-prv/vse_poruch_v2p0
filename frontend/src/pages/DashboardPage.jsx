@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
 import { useAppStore } from '../shared/store';
@@ -130,8 +130,95 @@ function DashboardListingsTab({ userId, onEdit }) {
   );
 }
 
+let leafletLoader;
+function ensureLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletLoader) return leafletLoader;
+  leafletLoader = new Promise((resolve, reject) => {
+    if (!document.querySelector('link[data-leaflet]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.dataset.leaflet = 'true';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = () => resolve(window.L);
+    script.onerror = () => reject(new Error('Не вдалося завантажити карту'));
+    document.body.appendChild(script);
+  });
+  return leafletLoader;
+}
+
+function CoordinatesPicker({ lat, lng, onChange }) {
+  const mapRef = useRef(null);
+  const hostRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    let clickHandler;
+
+    ensureLeaflet()
+      .then((L) => {
+        if (!active || !hostRef.current || mapRef.current) return;
+        const initialLat = Number.isFinite(lat) ? lat : 50.4501;
+        const initialLng = Number.isFinite(lng) ? lng : 30.5234;
+        const map = L.map(hostRef.current).setView([initialLat, initialLng], Number.isFinite(lat) ? 14 : 6);
+        mapRef.current = { map, marker: null, L };
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          mapRef.current.marker = L.marker([lat, lng]).addTo(map);
+        }
+
+        clickHandler = (event) => {
+          const nextLat = Number(event.latlng.lat.toFixed(6));
+          const nextLng = Number(event.latlng.lng.toFixed(6));
+          const current = mapRef.current;
+          if (!current.marker) {
+            current.marker = L.marker([nextLat, nextLng]).addTo(current.map);
+          } else {
+            current.marker.setLatLng([nextLat, nextLng]);
+          }
+          onChange(nextLat, nextLng);
+        };
+
+        map.on('click', clickHandler);
+      })
+      .catch(() => {
+        // no-op, parent form will still allow manual coordinates
+      });
+
+    return () => {
+      active = false;
+      if (mapRef.current) {
+        if (clickHandler) {
+          mapRef.current.map.off('click', clickHandler);
+        }
+        mapRef.current.map.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  return <div ref={hostRef} className="listing-map-picker" aria-label="Карта для вибору координат" />;
+}
+
 function DashboardListingFormTab({ userId, editId, onSaved }) {
-  const [form, setForm] = useState({ title: '', body: '', category_id: '', status: 'pending' });
+  const [form, setForm] = useState({
+    title: '',
+    body: '',
+    category_id: '',
+    price: '',
+    currency: 'UAH',
+    lat: '',
+    lng: '',
+    status: 'pending',
+  });
   const [photos, setPhotos] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -160,13 +247,17 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
               title: data.title || '',
               body: data.body || '',
               category_id: String(data.category_id || ''),
+              price: String(data.price ?? ''),
+              currency: data.currency || 'UAH',
+              lat: data.lat == null ? '' : String(data.lat),
+              lng: data.lng == null ? '' : String(data.lng),
               status: data.status || 'pending',
             });
             const normalizedPhotos = Array.isArray(data.photo_paths) ? data.photo_paths : [];
             setPhotos(normalizedPhotos.map((path, idx) => ({ id: `${path}-${idx}`, path })));
           }
         } else if (active) {
-          setForm({ title: '', body: '', category_id: '', status: 'pending' });
+          setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'pending' });
           setPhotos([]);
         }
       } catch (requestError) {
@@ -252,6 +343,10 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       body: form.body,
       author_id: userId,
       category_id: Number(form.category_id),
+      price: Number(form.price) || 0,
+      currency: form.currency || 'UAH',
+      lat: form.lat === '' ? null : Number(form.lat),
+      lng: form.lng === '' ? null : Number(form.lng),
       status: form.status,
       photo_paths: photos.map((photo) => photo.path),
     };
@@ -264,7 +359,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       }
       setSuccess(editId ? 'Оголошення оновлено' : 'Оголошення створено');
       if (!editId) {
-        setForm({ title: '', body: '', category_id: '', status: 'pending' });
+        setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'pending' });
         setPhotos([]);
       }
       onSaved();
@@ -276,70 +371,122 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
   };
 
   return (
-    <section>
-      <h2>{editId ? `Редагування #${editId}` : 'Створення оголошення'}</h2>
-      <p>Бізнес-правила статусів: blocked → тільки pending/deleted, deleted → тільки pending.</p>
-      <form onSubmit={saveListing}>
-        <label>
-          Назва
-          <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-        </label>
-        <label>
-          Опис
-          <textarea value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} />
-        </label>
-        <label>
-          Категорія
+    <section className="listing-editor-shell">
+      <article className="listing-editor-card">
+        <h2 className="listing-editor-title">Додати оголошення</h2>
+        <p className="listing-editor-subtitle">Можна додати до 5 фото. Координати обираються на карті натисканням на точку.</p>
+
+        <form onSubmit={saveListing} className="listing-editor-form">
+          <input
+            className="listing-editor-input"
+            placeholder="Назва (наприклад: Продам велосипед)"
+            value={form.title}
+            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+          />
+
+          <textarea
+            className="listing-editor-textarea"
+            placeholder="Опис (стан, деталі, контакти)"
+            value={form.body}
+            onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))}
+          />
+
           <select
+            className="listing-editor-select"
             value={form.category_id}
             onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
           >
-            <option value="">— Оберіть категорію —</option>
+            <option value="">— Обери категорію —</option>
             {safeCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Статус
-          <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
+
+          <div className="listing-editor-row">
+            <input
+              className="listing-editor-input"
+              placeholder="Ціна"
+              type="number"
+              min="0"
+              value={form.price}
+              onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
+            />
+            <input
+              className="listing-editor-input"
+              placeholder="Валюта"
+              value={form.currency}
+              onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))}
+            />
+          </div>
+
+          <CoordinatesPicker
+            lat={form.lat === '' ? null : Number(form.lat)}
+            lng={form.lng === '' ? null : Number(form.lng)}
+            onChange={(nextLat, nextLng) => setForm((prev) => ({ ...prev, lat: String(nextLat), lng: String(nextLng) }))}
+          />
+
+          <div className="listing-editor-row">
+            <input
+              className="listing-editor-input"
+              placeholder="lat"
+              value={form.lat}
+              onChange={(event) => setForm((prev) => ({ ...prev, lat: event.target.value }))}
+            />
+            <input
+              className="listing-editor-input"
+              placeholder="lng"
+              value={form.lng}
+              onChange={(event) => setForm((prev) => ({ ...prev, lng: event.target.value }))}
+            />
+          </div>
+
+          <select
+            className="listing-editor-select"
+            value={form.status}
+            onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
+          >
             {allowedStatuses.map((status) => (
               <option key={status} value={status}>
                 {status}
               </option>
             ))}
           </select>
-        </label>
 
-        <section>
-          <h3>Фото</h3>
-          <input type="file" accept="image/*" onChange={uploadPhoto} />
-          <ul>
-            {photos.map((photo, index) => (
-              <li key={photo.id}>
-                {photo.path}
-                <button type="button" onClick={() => movePhoto(index, -1)}>
-                  ↑
-                </button>
-                <button type="button" onClick={() => movePhoto(index, 1)}>
-                  ↓
-                </button>
-                <button type="button" onClick={() => removePhoto(photo.id)}>
-                  Видалити
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <input className="listing-editor-input" type="file" accept="image/*" onChange={uploadPhoto} />
 
-        {error ? <p role="alert">{error}</p> : null}
-        {success ? <p>{success}</p> : null}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Збереження...' : 'Зберегти'}
-        </button>
-      </form>
+          {photos.length > 0 ? (
+            <ul className="listing-photo-list">
+              {photos.map((photo, index) => (
+                <li key={photo.id}>
+                  <span>{photo.path}</span>
+                  <div>
+                    <button type="button" onClick={() => movePhoto(index, -1)}>
+                      ↑
+                    </button>
+                    <button type="button" onClick={() => movePhoto(index, 1)}>
+                      ↓
+                    </button>
+                    <button type="button" onClick={() => removePhoto(photo.id)}>
+                      Видалити
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {error ? <p role="alert" className="listing-editor-error">{error}</p> : null}
+          {success ? <p className="listing-editor-success">{success}</p> : null}
+
+          <div className="listing-editor-actions">
+            <button type="submit" disabled={loading} className="listing-editor-save-btn">
+              {loading ? 'Збереження...' : 'Зберегти'}
+            </button>
+          </div>
+        </form>
+      </article>
     </section>
   );
 }
