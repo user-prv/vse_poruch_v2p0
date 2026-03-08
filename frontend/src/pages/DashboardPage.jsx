@@ -47,7 +47,7 @@ function DashboardProfileTab({ user, refreshKey }) {
       try {
         const { data } = await apiClient.get(`/profile/${userId}`);
         if (active) {
-          setProfile(data);
+          setProfile(data?.data || data);
         }
       } catch (requestError) {
         if (active) {
@@ -238,10 +238,11 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
     async function loadContext() {
       try {
         const categoriesResponse = await apiClient.get('/categories');
-        const normalizedCategories = Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : Array.isArray(categoriesResponse.data?.items)
-            ? categoriesResponse.data.items
+        const categoriesPayload = categoriesResponse.data?.data || categoriesResponse.data;
+        const normalizedCategories = Array.isArray(categoriesPayload)
+          ? categoriesPayload
+          : Array.isArray(categoriesPayload?.items)
+            ? categoriesPayload.items
             : [];
         if (active) {
           setCategories(normalizedCategories);
@@ -249,17 +250,18 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
         if (editId) {
           const { data } = await apiClient.get(`/listings/${editId}`);
           if (active) {
+            const listing = data?.data || data;
             setForm({
-              title: data.title || '',
-              body: data.body || '',
-              category_id: String(data.category_id || ''),
-              price: String(data.price ?? ''),
-              currency: data.currency || 'UAH',
-              lat: data.lat == null ? '' : String(data.lat),
-              lng: data.lng == null ? '' : String(data.lng),
-              status: data.status || 'pending',
+              title: listing.title || '',
+              body: listing.body || '',
+              category_id: String(listing.category_id || ''),
+              price: String(listing.price ?? ''),
+              currency: listing.currency || 'UAH',
+              lat: listing.lat == null ? '' : String(listing.lat),
+              lng: listing.lng == null ? '' : String(listing.lng),
+              status: listing.status || 'pending',
             });
-            const normalizedPhotos = Array.isArray(data.photo_paths) ? data.photo_paths : [];
+            const normalizedPhotos = Array.isArray(listing.photo_paths) ? listing.photo_paths : [];
             setPhotos(normalizedPhotos.map((path, idx) => ({ id: `${path}-${idx}`, path })));
           }
         } else if (active) {
@@ -302,7 +304,8 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       const { data } = await apiClient.post('/uploads/photo', payload, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setPhotos((prev) => [...prev, { id: `${data.path}-${Date.now()}`, path: data.path }]);
+      const uploadPayload = data?.data || data;
+      setPhotos((prev) => [...prev, { id: `${uploadPayload.path}-${Date.now()}`, path: uploadPayload.path }]);
     } catch (requestError) {
       setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити фото');
     } finally {
