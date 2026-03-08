@@ -54,7 +54,7 @@ export function LoginPage() {
 
       if (userId) {
         const { data } = await apiClient.get(`/profile/${userId}`);
-        profile = data;
+        profile = data?.data || data;
       }
 
       setSession({ token, user: profile });
