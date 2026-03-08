@@ -386,7 +386,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       currency: form.currency || 'UAH',
       lat: normalizedLat,
       lng: normalizedLng,
-      status: form.status,
+      status: editId ? form.status : 'pending',
       photo_paths: photos.map((photo) => photo.path),
     };
 

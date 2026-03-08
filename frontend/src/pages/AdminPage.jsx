@@ -2,16 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../shared/store';
 import {
   blockUser,
+  createCategory,
+  deleteCategory,
   fetchCategories,
   fetchListings,
   fetchUserProfile,
   moderateListing,
   setCategoryIcon,
+  updateCategory,
   verifyUser,
-  createCategory,
 } from '../api/admin';
 
 const LISTING_STATUSES = ['pending', 'active', 'blocked', 'deleted'];
+
+const ADMIN_TABS = {
+  users: 'users',
+  listings: 'listings',
+  verification: 'verification',
+  categories: 'categories',
+};
 
 function toRole(value) {
   return String(value || '').trim().toLowerCase();
@@ -20,6 +29,7 @@ function toRole(value) {
 export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState(ADMIN_TABS.users);
 
   const [listings, setListings] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -37,6 +47,8 @@ export function AdminPage() {
   const [bulkListingStatus, setBulkListingStatus] = useState('blocked');
   const [categoryIconPath, setCategoryIconPath] = useState('/uploads/category_icons/default.svg');
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
 
   const [actionLog, setActionLog] = useState([]);
 
@@ -117,7 +129,6 @@ export function AdminPage() {
     await loadData();
   };
 
-
   const handleListingStatus = async (listingId, status) => {
     if (!canManageAdmin) return;
     await moderateListing(listingId, status);
@@ -155,7 +166,6 @@ export function AdminPage() {
     setSelectedUserIds([]);
   };
 
-
   const handleCreateCategory = async (event) => {
     event.preventDefault();
     if (!canManageAdmin) return;
@@ -164,6 +174,34 @@ export function AdminPage() {
     await createCategory({ name });
     setNewCategoryName('');
     addLog(`Створено категорію "${name}".`);
+    await loadData();
+  };
+
+  const handleStartEditCategory = (item) => {
+    setEditingCategoryId(item.id);
+    setEditingCategoryName(item.name || '');
+  };
+
+  const handleSaveCategory = async (categoryId) => {
+    if (!canManageAdmin) return;
+    const currentCategory = categories.find((category) => category.id === categoryId);
+    const nextName = editingCategoryName.trim();
+    if (!currentCategory || !nextName) return;
+    await updateCategory(categoryId, {
+      name: nextName,
+      parent_id: currentCategory.parent_id || null,
+      icon_path: currentCategory.icon_path || '',
+    });
+    addLog(`Категорію #${categoryId} оновлено.`);
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
+    await loadData();
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (!canManageAdmin) return;
+    await deleteCategory(categoryId);
+    addLog(`Категорію #${categoryId} видалено.`, 'warn');
     await loadData();
   };
 
@@ -177,169 +215,210 @@ export function AdminPage() {
   };
 
   return (
-    <main>
-      <h1>Admin panel</h1>
-      <p>Модулі parity: оголошення, користувачі, категорії + журнал дій.</p>
+    <main className="admin-page-shell">
+      <section className="admin-card">
+        <h1 className="admin-title">Адмінка</h1>
 
-      <div>
-        <button onClick={loadData} disabled={loading}>{loading ? 'Оновлюємо...' : 'Оновити дані'}</button>
-        {!canManageAdmin ? <p role="alert">Недостатньо прав: операції керування доступні тільки для role=admin.</p> : null}
-        {error ? <p role="alert">{error}</p> : null}
-      </div>
+        <nav className="admin-tabs" aria-label="Адмін вкладки">
+          <button type="button" className={`admin-tab-btn ${activeTab === ADMIN_TABS.users ? 'active' : ''}`} onClick={() => setActiveTab(ADMIN_TABS.users)}>
+            Користувачі
+          </button>
+          <button type="button" className={`admin-tab-btn ${activeTab === ADMIN_TABS.listings ? 'active' : ''}`} onClick={() => setActiveTab(ADMIN_TABS.listings)}>
+            Оголошення
+          </button>
+          <button type="button" className={`admin-tab-btn ${activeTab === ADMIN_TABS.verification ? 'active' : ''}`} onClick={() => setActiveTab(ADMIN_TABS.verification)}>
+            Верифікація
+          </button>
+          <button type="button" className={`admin-tab-btn ${activeTab === ADMIN_TABS.categories ? 'active' : ''}`} onClick={() => setActiveTab(ADMIN_TABS.categories)}>
+            Категорії
+          </button>
+          <button type="button" className="admin-tab-btn admin-tab-map">На карту</button>
+        </nav>
 
-      <section aria-labelledby="admin-listings">
-        <h2 id="admin-listings">Модерація оголошень</h2>
-        <label>
-          Фільтр статусу:
-          <select value={listingStatusFilter} onChange={(event) => setListingStatusFilter(event.target.value)}>
-            <option value="all">all</option>
-            {LISTING_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Пошук:
-          <input value={listingSearch} onChange={(event) => setListingSearch(event.target.value)} placeholder="id / title / author" />
-        </label>
-        <div>
-          <select value={bulkListingStatus} onChange={(event) => setBulkListingStatus(event.target.value)}>
-            {LISTING_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-          <button onClick={moderateSelectedListings} disabled={!canManageAdmin || selectedListingIds.length === 0}>Bulk moderate</button>
+        <div className="admin-actions-row">
+          <button onClick={loadData} disabled={loading}>{loading ? 'Оновлюємо...' : 'Оновити дані'}</button>
+          {!canManageAdmin ? <p role="alert">Недостатньо прав: операції керування доступні тільки для role=admin.</p> : null}
+          {error ? <p role="alert">{error}</p> : null}
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th />
-              <th>ID</th>
-              <th>Title</th>
-              <th>Author</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleListings.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedListingIds.includes(item.id)}
-                    onChange={() => toggleSelection(selectedListingIds, setSelectedListingIds, item.id)}
-                  />
-                </td>
-                <td>{item.id}</td>
-                <td>{item.title}</td>
-                <td>{item.author_id}</td>
-                <td>{item.status}</td>
-                <td>
-                  <button onClick={() => handleListingStatus(item.id, 'active')} disabled={!canManageAdmin}>Підтвердити</button>
-                  <button onClick={() => handleListingStatus(item.id, 'blocked')} disabled={!canManageAdmin}>Блок</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
 
-      <section aria-labelledby="admin-users">
-        <h2 id="admin-users">Верифікація / блокування користувачів</h2>
-        <label>
-          Пошук:
-          <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="id / email / role" />
-        </label>
-        <div>
-          <button onClick={verifySelectedUsers} disabled={!canManageAdmin || selectedUserIds.length === 0}>Bulk verify</button>
-          <button onClick={blockSelectedUsers} disabled={!canManageAdmin || selectedUserIds.length === 0}>Bulk block</button>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th />
-              <th>ID</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleUsers.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <input type="checkbox" checked={selectedUserIds.includes(item.id)} onChange={() => toggleSelection(selectedUserIds, setSelectedUserIds, item.id)} />
-                </td>
-                <td>{item.id}</td>
-                <td>{item.email}</td>
-                <td>{item.role || 'user'}</td>
-                <td>{item.is_blocked ? 'blocked' : 'active'}</td>
-                <td>
-                  <button onClick={() => handleVerifyUser(item.id)} disabled={!canManageAdmin}>Verify</button>
-                  <button onClick={() => handleBlockUser(item.id)} disabled={!canManageAdmin}>Block</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        {activeTab === ADMIN_TABS.listings ? (
+          <section aria-labelledby="admin-listings">
+            <h2 id="admin-listings">Модерація оголошень</h2>
+            <label>
+              Фільтр статусу:
+              <select value={listingStatusFilter} onChange={(event) => setListingStatusFilter(event.target.value)}>
+                <option value="all">all</option>
+                {LISTING_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Пошук:
+              <input value={listingSearch} onChange={(event) => setListingSearch(event.target.value)} placeholder="id / title / author" />
+            </label>
+            <div>
+              <select value={bulkListingStatus} onChange={(event) => setBulkListingStatus(event.target.value)}>
+                {LISTING_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+              <button onClick={moderateSelectedListings} disabled={!canManageAdmin || selectedListingIds.length === 0}>Bulk moderate</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th />
+                  <th>ID</th>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleListings.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedListingIds.includes(item.id)}
+                        onChange={() => toggleSelection(selectedListingIds, setSelectedListingIds, item.id)}
+                      />
+                    </td>
+                    <td>{item.id}</td>
+                    <td>{item.title}</td>
+                    <td>{item.author_id}</td>
+                    <td>{item.status}</td>
+                    <td>
+                      <button onClick={() => handleListingStatus(item.id, 'active')} disabled={!canManageAdmin}>Підтвердити</button>
+                      <button onClick={() => handleListingStatus(item.id, 'blocked')} disabled={!canManageAdmin}>Блок</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
 
-      <section aria-labelledby="admin-categories">
-        <h2 id="admin-categories">Категорії</h2>
-        <form onSubmit={handleCreateCategory}>
-          <input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Нова категорія" />
-          <button type="submit" disabled={!canManageAdmin}>Додати категорію</button>
-        </form>
-        <label>
-          Пошук:
-          <input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="id / name" />
-        </label>
-        <label>
-          icon_path:
-          <input value={categoryIconPath} onChange={(event) => setCategoryIconPath(event.target.value)} />
-        </label>
-        <button onClick={updateSelectedCategoryIcons} disabled={!canManageAdmin || selectedCategoryIds.length === 0}>Bulk update icons</button>
-        <table>
-          <thead>
-            <tr>
-              <th />
-              <th>ID</th>
-              <th>Name</th>
-              <th>Parent</th>
-              <th>Icon</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleCategories.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedCategoryIds.includes(item.id)}
-                    onChange={() => toggleSelection(selectedCategoryIds, setSelectedCategoryIds, item.id)}
-                  />
-                </td>
-                <td>{item.id}</td>
-                <td>{item.name}</td>
-                <td>{item.parent_id || '-'}</td>
-                <td>{item.icon_path || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        {activeTab === ADMIN_TABS.users || activeTab === ADMIN_TABS.verification ? (
+          <section aria-labelledby="admin-users">
+            <h2 id="admin-users">Верифікація / блокування користувачів</h2>
+            <label>
+              Пошук:
+              <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="id / email / role" />
+            </label>
+            <div>
+              <button onClick={verifySelectedUsers} disabled={!canManageAdmin || selectedUserIds.length === 0}>Bulk verify</button>
+              <button onClick={blockSelectedUsers} disabled={!canManageAdmin || selectedUserIds.length === 0}>Bulk block</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th />
+                  <th>ID</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleUsers.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <input type="checkbox" checked={selectedUserIds.includes(item.id)} onChange={() => toggleSelection(selectedUserIds, setSelectedUserIds, item.id)} />
+                    </td>
+                    <td>{item.id}</td>
+                    <td>{item.email}</td>
+                    <td>{item.role || 'user'}</td>
+                    <td>{item.is_blocked ? 'blocked' : 'active'}</td>
+                    <td>
+                      <button onClick={() => handleVerifyUser(item.id)} disabled={!canManageAdmin}>Verify</button>
+                      <button onClick={() => handleBlockUser(item.id)} disabled={!canManageAdmin}>Block</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
 
-      <section aria-labelledby="admin-audit-log">
-        <h2 id="admin-audit-log">Журнал дій</h2>
-        <ul>
-          {actionLog.map((entry) => (
-            <li key={entry.id}>
-              [{entry.status}] {entry.at}: {entry.message}
-            </li>
-          ))}
-        </ul>
+        {activeTab === ADMIN_TABS.categories ? (
+          <section aria-labelledby="admin-categories">
+            <h2 id="admin-categories">Категорії</h2>
+            <form onSubmit={handleCreateCategory}>
+              <input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Нова категорія" />
+              <button type="submit" disabled={!canManageAdmin}>Додати категорію</button>
+            </form>
+            <label>
+              Пошук:
+              <input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="id / name" />
+            </label>
+            <label>
+              icon_path:
+              <input value={categoryIconPath} onChange={(event) => setCategoryIconPath(event.target.value)} />
+            </label>
+            <button onClick={updateSelectedCategoryIcons} disabled={!canManageAdmin || selectedCategoryIds.length === 0}>Bulk update icons</button>
+            <table>
+              <thead>
+                <tr>
+                  <th />
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Parent</th>
+                  <th>Icon</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCategories.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedCategoryIds.includes(item.id)}
+                        onChange={() => toggleSelection(selectedCategoryIds, setSelectedCategoryIds, item.id)}
+                      />
+                    </td>
+                    <td>{item.id}</td>
+                    <td>
+                      {editingCategoryId === item.id ? (
+                        <input value={editingCategoryName} onChange={(event) => setEditingCategoryName(event.target.value)} />
+                      ) : (
+                        item.name
+                      )}
+                    </td>
+                    <td>{item.parent_id || '-'}</td>
+                    <td>{item.icon_path || '-'}</td>
+                    <td>
+                      {editingCategoryId === item.id ? (
+                        <>
+                          <button type="button" onClick={() => handleSaveCategory(item.id)} disabled={!canManageAdmin}>Зберегти</button>
+                          <button type="button" onClick={() => setEditingCategoryId(null)}>Скасувати</button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => handleStartEditCategory(item)} disabled={!canManageAdmin}>Редагувати</button>
+                      )}
+                      <button type="button" onClick={() => handleDeleteCategory(item.id)} disabled={!canManageAdmin}>Видалити</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
+        <section aria-labelledby="admin-audit-log">
+          <h2 id="admin-audit-log">Журнал дій</h2>
+          <ul>
+            {actionLog.map((entry) => (
+              <li key={entry.id}>
+                [{entry.status}] {entry.at}: {entry.message}
+              </li>
+            ))}
+          </ul>
+        </section>
       </section>
     </main>
   );

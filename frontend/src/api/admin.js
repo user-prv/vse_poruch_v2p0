@@ -39,3 +39,13 @@ export async function createCategory(payload) {
   const { data } = await apiClient.post('/categories', payload);
   return data;
 }
+
+export async function updateCategory(categoryId, payload) {
+  const { data } = await apiClient.put(`/categories/${categoryId}`, payload);
+  return data;
+}
+
+export async function deleteCategory(categoryId) {
+  const { data } = await apiClient.delete(`/categories/${categoryId}`);
+  return data;
+}
