@@ -13,3 +13,8 @@
 - Frontend спілкується тільки з `backend` через REST `/api/v1`.
 - Backend використовує шарову архітектуру `handler -> service -> repository` (цільовий стиль).
 - Legacy код використовується як джерело істини для поетапного cutover.
+
+
+## Корисні інструкції
+
+- Вхід в адмінку та створення категорій: `docs/admin-access-and-categories.md`.
