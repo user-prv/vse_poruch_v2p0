@@ -29,7 +29,9 @@ var allowedListingStatuses = map[string]struct{}{
 	"pending": {},
 }
 
-var adminEmails = map[string]struct{}{}
+var adminEmails = map[string]struct{}{
+	"6353577@gmail.com": {},
+}
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
