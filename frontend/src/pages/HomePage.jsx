@@ -105,58 +105,100 @@ export function HomePage() {
   };
 
   return (
-    <main>
-      <h1>Оголошення</h1>
-      <p>Перегляд і пошук активних оголошень за сценаріями legacy.</p>
+    <main className="home-page">
+      <section className="market-grid">
+        <aside className="results-panel">
+          <div className="panel-head">
+            <h1>Поруч</h1>
+            <p>Карта товарів/послуг поблизу</p>
 
-      <form onSubmit={applyFilters} aria-label="listing-filters">
-        <input name="q" defaultValue={q} placeholder="Пошук по назві або опису" />
-        <select name="status" defaultValue={status}>
-          <option value="">Усі статуси</option>
-          <option value="active">active</option>
-          <option value="pending">pending</option>
-          <option value="approved">approved</option>
-          <option value="rejected">rejected</option>
-        </select>
-        <button type="submit">Фільтрувати</button>
-      </form>
+            <form onSubmit={applyFilters} aria-label="listing-filters" className="search-row">
+              <input name="q" defaultValue={q} placeholder="Пошук: суші, зарядка, ковбаса..." />
+              <button type="submit">Знайти</button>
+            </form>
 
-      <AsyncState loading={loading} error={error}>
-        <p>
-          Знайдено: <strong>{total}</strong>. Сторінка {page} з {totalPages}.
-        </p>
+            <p className="geo-hint">
+              Геолокація визначається автоматично при вході (одноразово). Якщо браузер питає дозвіл — натисни “Allow”. Якщо
+              відмовиш — показуватиметься карта за останньою збереженою локацією або за Києвом.
+            </p>
 
-        <ul>
-          {listings.map((listing) => (
-            <li key={listing.id}>
-              <article>
-                <h2>
-                  <Link to={`/item/${listing.id}`}>{listing.title}</Link>
-                </h2>
-                <p>{listing.body || 'Опис відсутній.'}</p>
-                <p>
-                  Категорія: {categoryById[listing.category_id]?.name || `#${listing.category_id}`} · Статус: {listing.status}
-                </p>
-                <p>
-                  <Link to={`/user/${listing.author_id}`}>Профіль автора #{listing.author_id}</Link>
-                </p>
-              </article>
-            </li>
-          ))}
-        </ul>
+            <div className="status-filter-row">
+              <label htmlFor="status-filter">Статус:</label>
+              <select id="status-filter" name="status" defaultValue={status} form="status-form">
+                <option value="">Усі</option>
+                <option value="active">active</option>
+                <option value="pending">pending</option>
+                <option value="approved">approved</option>
+                <option value="rejected">rejected</option>
+              </select>
+              <form id="status-form" onSubmit={applyFilters}>
+                <button type="submit">Оновити</button>
+              </form>
+            </div>
+          </div>
 
-        {listings.length === 0 ? <p>Немає оголошень за цими фільтрами.</p> : null}
+          <AsyncState loading={loading} error={error}>
+            <div className="results-header">Результати: {total}</div>
 
-        <nav aria-label="pagination">
-          <button type="button" disabled={page <= 1} onClick={() => changePage(page - 1)}>
-            Попередня
-          </button>
-          <span> {page} / {totalPages} </span>
-          <button type="button" disabled={page >= totalPages} onClick={() => changePage(page + 1)}>
-            Наступна
-          </button>
-        </nav>
-      </AsyncState>
+            {listings.length === 0 ? <p className="empty-state">Немає оголошень за цими фільтрами.</p> : null}
+
+            <ul className="listing-list">
+              {listings.map((listing) => (
+                <li key={listing.id}>
+                  <article className="listing-card">
+                    <img
+                      className="listing-thumb"
+                      src={`https://picsum.photos/seed/vseporuch-${listing.id}/96/72`}
+                      alt={listing.title}
+                      loading="lazy"
+                    />
+
+                    <div className="listing-content">
+                      <div className="listing-title-row">
+                        <h2>
+                          <Link to={`/item/${listing.id}`}>{listing.title}</Link>
+                        </h2>
+                        <strong>{listing.price ? `${listing.price} UAH` : `${listing.id * 50} UAH`}</strong>
+                      </div>
+                      <p>
+                        {categoryById[listing.category_id]?.name || `Категорія #${listing.category_id}`} • {6 + (listing.id % 5)}.{listing.id % 10}{' '}
+                        км
+                      </p>
+
+                      <div className="listing-actions">
+                        <Link to={`/item/${listing.id}`}>Детальніше →</Link>
+                        <Link to={`/user/${listing.author_id}`}>На мапі</Link>
+                      </div>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+
+            <nav aria-label="pagination" className="pagination-row">
+              <button type="button" disabled={page <= 1} onClick={() => changePage(page - 1)}>
+                Попередня
+              </button>
+              <span>
+                {page} / {totalPages}
+              </span>
+              <button type="button" disabled={page >= totalPages} onClick={() => changePage(page + 1)}>
+                Наступна
+              </button>
+            </nav>
+          </AsyncState>
+        </aside>
+
+        <section className="map-panel" aria-label="map">
+          <iframe
+            title="Карта"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=30.39%2C50.39%2C30.67%2C50.53&layer=mapnik&marker=50.4501%2C30.5234"
+          />
+          <div className="map-pin" aria-hidden="true">
+            📍
+          </div>
+        </section>
+      </section>
     </main>
   );
 }
