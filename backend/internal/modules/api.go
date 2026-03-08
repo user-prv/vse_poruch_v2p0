@@ -99,6 +99,25 @@ type authRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
+func parseBearerUserID(authHeader string) uint {
+	value := strings.TrimSpace(authHeader)
+	if value == "" {
+		return 0
+	}
+	if strings.HasPrefix(strings.ToLower(value), "bearer ") {
+		value = strings.TrimSpace(value[7:])
+	}
+	parts := strings.SplitN(value, "-", 2)
+	if len(parts) != 2 || parts[0] != "user" {
+		return 0
+	}
+	id, err := strconv.Atoi(parts[1])
+	if err != nil || id <= 0 {
+		return 0
+	}
+	return uint(id)
+}
+
 func (a *API) Register(c *gin.Context) {
 	var req authRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -123,6 +142,10 @@ func (a *API) Login(c *gin.Context) {
 	var user User
 	if err := a.db.Where("email = ?", strings.ToLower(strings.TrimSpace(req.Email))).First(&user).Error; err != nil {
 		response.Error(c, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	if user.IsBlocked {
+		response.Error(c, http.StatusForbidden, "user is blocked")
 		return
 	}
 	a.log.WithFields(logrus.Fields{"event": "auth.login", "user_id": user.ID, "email": user.Email}).Info("audit")
@@ -152,14 +175,14 @@ func (a *API) Profile(c *gin.Context) {
 type listingRequest struct {
 	Title      string   `json:"title" binding:"required,min=3"`
 	Body       string   `json:"body"`
-	AuthorID   uint     `json:"author_id" binding:"required"`
-	CategoryID uint      `json:"category_id" binding:"required"`
-	Price      uint      `json:"price"`
-	Currency   string    `json:"currency"`
-	Latitude   *float64  `json:"lat"`
-	Longitude  *float64  `json:"lng"`
-	Status     string    `json:"status"`
-	PhotoPaths []string  `json:"photo_paths"`
+	AuthorID   uint     `json:"author_id"`
+	CategoryID uint     `json:"category_id" binding:"required"`
+	Price      uint     `json:"price"`
+	Currency   string   `json:"currency"`
+	Latitude   *float64 `json:"lat"`
+	Longitude  *float64 `json:"lng"`
+	Status     string   `json:"status"`
+	PhotoPaths []string `json:"photo_paths"`
 }
 
 func (a *API) CreateListing(c *gin.Context) {
@@ -173,12 +196,37 @@ func (a *API) CreateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid status")
 		return
 	}
+	authorID := req.AuthorID
+	if authorID == 0 {
+		authorID = parseBearerUserID(c.GetHeader("Authorization"))
+	}
+	if authorID == 0 {
+		response.Error(c, http.StatusBadRequest, "author_id is required")
+		return
+	}
+	var author User
+	if err := a.db.First(&author, authorID).Error; err != nil {
+		response.Error(c, http.StatusBadRequest, "author not found")
+		return
+	}
+	if author.IsBlocked {
+		response.Error(c, http.StatusForbidden, "author is blocked")
+		return
+	}
+	var category Category
+	if err := a.db.First(&category, req.CategoryID).Error; err != nil {
+		response.Error(c, http.StatusBadRequest, "category not found")
+		return
+	}
+	if status == "active" {
+		status = "pending"
+	}
 	photoBytes, _ := json.Marshal(req.PhotoPaths)
 	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
 	if currency == "" {
 		currency = "UAH"
 	}
-	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: req.AuthorID, CategoryID: req.CategoryID, Price: req.Price, Currency: currency, Latitude: req.Latitude, Longitude: req.Longitude, Status: status, PhotoPaths: string(photoBytes)}
+	listing := Listing{Title: html.EscapeString(req.Title), Body: html.EscapeString(req.Body), AuthorID: authorID, CategoryID: req.CategoryID, Price: req.Price, Currency: currency, Latitude: req.Latitude, Longitude: req.Longitude, Status: status, PhotoPaths: string(photoBytes)}
 	if err := a.db.Create(&listing).Error; err != nil {
 		response.Error(c, http.StatusBadRequest, "cannot create listing")
 		return
@@ -188,9 +236,13 @@ func (a *API) CreateListing(c *gin.Context) {
 
 func (a *API) ListListings(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
-	status := normalizeStatus(c.Query("status"))
+	statusQuery := strings.TrimSpace(c.Query("status"))
+	status := ""
+	if statusQuery != "" {
+		status = normalizeStatus(statusQuery)
+	}
 	authorID, _ := strconv.Atoi(c.Query("author_id"))
-	if c.Query("status") != "" && status == "" {
+	if statusQuery != "" && status == "" {
 		response.Error(c, http.StatusBadRequest, "invalid status")
 		return
 	}
@@ -209,6 +261,8 @@ func (a *API) ListListings(c *gin.Context) {
 	}
 	if status != "" {
 		dbq = dbq.Where("status = ?", status)
+	} else {
+		dbq = dbq.Where("status = ?", "active")
 	}
 	if authorID > 0 {
 		dbq = dbq.Where("author_id = ?", authorID)
@@ -364,13 +418,41 @@ func (a *API) ModerateListing(c *gin.Context) {
 }
 func (a *API) VerifyUser(c *gin.Context) {
 	a.log.WithFields(logrus.Fields{"event": "admin.verify_user", "user_id": c.Param("id")}).Info("audit")
-	response.JSON(c, http.StatusOK, gin.H{"user_id": c.Param("id"), "verified": true})
+	var user User
+	if err := a.db.First(&user, c.Param("id")).Error; err != nil {
+		response.Error(c, http.StatusNotFound, "user not found")
+		return
+	}
+	user.Verified = true
+	a.db.Save(&user)
+	response.JSON(c, http.StatusOK, gin.H{"user_id": user.ID, "verified": user.Verified})
 }
 func (a *API) BlockUser(c *gin.Context) {
 	a.log.WithFields(logrus.Fields{"event": "admin.block_user", "user_id": c.Param("id")}).Info("audit")
-	response.JSON(c, http.StatusOK, gin.H{"user_id": c.Param("id"), "blocked": true})
+	var user User
+	if err := a.db.First(&user, c.Param("id")).Error; err != nil {
+		response.Error(c, http.StatusNotFound, "user not found")
+		return
+	}
+	user.IsBlocked = true
+	a.db.Save(&user)
+	response.JSON(c, http.StatusOK, gin.H{"user_id": user.ID, "blocked": user.IsBlocked})
 }
 func (a *API) SetCategoryIcon(c *gin.Context) {
 	a.log.WithFields(logrus.Fields{"event": "admin.set_category_icon", "category_id": c.Param("id")}).Info("audit")
-	response.JSON(c, http.StatusOK, gin.H{"category_id": c.Param("id"), "updated": true})
+	var payload struct {
+		IconPath string `json:"icon_path" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request")
+		return
+	}
+	var category Category
+	if err := a.db.First(&category, c.Param("id")).Error; err != nil {
+		response.Error(c, http.StatusNotFound, "category not found")
+		return
+	}
+	category.IconPath = strings.TrimSpace(payload.IconPath)
+	a.db.Save(&category)
+	response.JSON(c, http.StatusOK, gin.H{"category_id": category.ID, "updated": true, "icon_path": category.IconPath})
 }

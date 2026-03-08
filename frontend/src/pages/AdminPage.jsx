@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAppStore } from '../shared/store';
 import {
   blockUser,
   fetchCategories,
@@ -7,6 +8,7 @@ import {
   moderateListing,
   setCategoryIcon,
   verifyUser,
+  createCategory,
 } from '../api/admin';
 
 const LISTING_STATUSES = ['pending', 'active', 'blocked', 'deleted'];
@@ -34,10 +36,12 @@ export function AdminPage() {
 
   const [bulkListingStatus, setBulkListingStatus] = useState('blocked');
   const [categoryIconPath, setCategoryIconPath] = useState('/uploads/category_icons/default.svg');
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [actionLog, setActionLog] = useState([]);
 
-  const [currentRole, setCurrentRole] = useState('');
+  const sessionUser = useAppStore((state) => state.user);
+  const currentRole = sessionUser?.role || sessionUser?.Role || '';
   const canManageAdmin = toRole(currentRole) === 'admin';
 
   const addLog = (message, status = 'ok') => {
@@ -65,8 +69,6 @@ export function AdminPage() {
         .map((item) => item.value)
         .filter(Boolean);
       setUsers(profiles);
-      const adminUser = profiles.find((profile) => toRole(profile?.role) === 'admin');
-      setCurrentRole(adminUser?.role || currentRole);
     } catch (requestError) {
       setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити адмін-дані.');
     } finally {
@@ -115,6 +117,28 @@ export function AdminPage() {
     await loadData();
   };
 
+
+  const handleListingStatus = async (listingId, status) => {
+    if (!canManageAdmin) return;
+    await moderateListing(listingId, status);
+    addLog(`Оголошення #${listingId}: статус ${status}.`);
+    await loadData();
+  };
+
+  const handleBlockUser = async (userId) => {
+    if (!canManageAdmin) return;
+    await blockUser(userId);
+    addLog(`Користувач #${userId} заблокований.`);
+    await loadData();
+  };
+
+  const handleVerifyUser = async (userId) => {
+    if (!canManageAdmin) return;
+    await verifyUser(userId);
+    addLog(`Користувач #${userId} верифікований.`);
+    await loadData();
+  };
+
   const verifySelectedUsers = async () => {
     if (!canManageAdmin || selectedUserIds.length === 0) return;
     const results = await Promise.allSettled(selectedUserIds.map((id) => verifyUser(id)));
@@ -129,6 +153,18 @@ export function AdminPage() {
     const success = results.filter((item) => item.status === 'fulfilled').length;
     addLog(`Користувачі: ${success}/${selectedUserIds.length} заблоковано.`, success === selectedUserIds.length ? 'ok' : 'warn');
     setSelectedUserIds([]);
+  };
+
+
+  const handleCreateCategory = async (event) => {
+    event.preventDefault();
+    if (!canManageAdmin) return;
+    const name = newCategoryName.trim();
+    if (!name) return;
+    await createCategory({ name });
+    setNewCategoryName('');
+    addLog(`Створено категорію "${name}".`);
+    await loadData();
   };
 
   const updateSelectedCategoryIcons = async () => {
@@ -182,6 +218,7 @@ export function AdminPage() {
               <th>Title</th>
               <th>Author</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -198,6 +235,10 @@ export function AdminPage() {
                 <td>{item.title}</td>
                 <td>{item.author_id}</td>
                 <td>{item.status}</td>
+                <td>
+                  <button onClick={() => handleListingStatus(item.id, 'active')} disabled={!canManageAdmin}>Підтвердити</button>
+                  <button onClick={() => handleListingStatus(item.id, 'blocked')} disabled={!canManageAdmin}>Блок</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -222,6 +263,7 @@ export function AdminPage() {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -233,7 +275,11 @@ export function AdminPage() {
                 <td>{item.id}</td>
                 <td>{item.email}</td>
                 <td>{item.role || 'user'}</td>
-                <td>{item.status || 'active'}</td>
+                <td>{item.is_blocked ? 'blocked' : 'active'}</td>
+                <td>
+                  <button onClick={() => handleVerifyUser(item.id)} disabled={!canManageAdmin}>Verify</button>
+                  <button onClick={() => handleBlockUser(item.id)} disabled={!canManageAdmin}>Block</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -242,6 +288,10 @@ export function AdminPage() {
 
       <section aria-labelledby="admin-categories">
         <h2 id="admin-categories">Категорії</h2>
+        <form onSubmit={handleCreateCategory}>
+          <input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Нова категорія" />
+          <button type="submit" disabled={!canManageAdmin}>Додати категорію</button>
+        </form>
         <label>
           Пошук:
           <input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="id / name" />

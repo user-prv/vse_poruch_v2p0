@@ -16,6 +16,12 @@ const STATUS_LABELS = {
   pending: 'pending',
 };
 
+
+function parseUserIdFromToken(token) {
+  const matched = /^user-(\d+)$/.exec(String(token || ''));
+  return matched ? Number(matched[1]) : null;
+}
+
 function statusBadgeStyle(status) {
   if (status === 'active') return { color: '#166534' };
   if (status === 'blocked') return { color: '#b91c1c' };
@@ -523,7 +529,9 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
 
 export function DashboardPage() {
   const user = useAppStore((state) => state.user);
+  const token = useAppStore((state) => state.token);
   const [tab, setTab] = useState(TABS.profile);
+  const resolvedUserId = user?.id || user?.ID || parseUserIdFromToken(token);
   const [editId, setEditId] = useState(null);
   const [profileRefresh, setProfileRefresh] = useState(0);
 
@@ -545,7 +553,7 @@ export function DashboardPage() {
       {tab === TABS.profile ? <DashboardProfileTab user={user} refreshKey={profileRefresh} /> : null}
       {tab === TABS.listings ? (
         <DashboardListingsTab
-          userId={user?.id || user?.ID}
+          userId={resolvedUserId}
           onEdit={(id) => {
             setEditId(id);
             setTab(TABS.editor);
@@ -554,7 +562,7 @@ export function DashboardPage() {
       ) : null}
       {tab === TABS.editor ? (
         <DashboardListingFormTab
-          userId={user?.id || user?.ID}
+          userId={resolvedUserId}
           editId={editId}
           onSaved={() => {
             setProfileRefresh((prev) => prev + 1);

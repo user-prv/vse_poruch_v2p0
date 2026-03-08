@@ -34,3 +34,8 @@ export async function fetchUserProfile(userId) {
   const { data } = await apiClient.get(`/profile/${userId}`);
   return data;
 }
+
+export async function createCategory(payload) {
+  const { data } = await apiClient.post('/categories', payload);
+  return data;
+}
