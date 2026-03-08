@@ -326,9 +326,39 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
     setError('');
     setSuccess('');
 
-    if (!form.title.trim()) {
+    const normalizedAuthorId = Number(userId);
+    const normalizedCategoryId = Number(form.category_id);
+    const normalizedPrice = Number(form.price);
+    const normalizedLat = form.lat === '' ? null : Number(form.lat);
+    const normalizedLng = form.lng === '' ? null : Number(form.lng);
+
+    if (!Number.isInteger(normalizedAuthorId) || normalizedAuthorId <= 0) {
       setLoading(false);
-      setError('Вкажіть назву оголошення');
+      setError('Не вдалося визначити користувача. Оновіть сторінку та увійдіть повторно.');
+      return;
+    }
+
+    if (form.title.trim().length < 3) {
+      setLoading(false);
+      setError('Назва оголошення має містити щонайменше 3 символи');
+      return;
+    }
+
+    if (!Number.isInteger(normalizedCategoryId) || normalizedCategoryId <= 0) {
+      setLoading(false);
+      setError('Оберіть категорію оголошення');
+      return;
+    }
+
+    if (form.price !== '' && (!Number.isFinite(normalizedPrice) || normalizedPrice < 0)) {
+      setLoading(false);
+      setError('Ціна повинна бути числом, не меншим за 0');
+      return;
+    }
+
+    if ((normalizedLat !== null && !Number.isFinite(normalizedLat)) || (normalizedLng !== null && !Number.isFinite(normalizedLng))) {
+      setLoading(false);
+      setError('Координати повинні бути коректними числами');
       return;
     }
 
@@ -339,14 +369,14 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
     }
 
     const payload = {
-      title: form.title,
+      title: form.title.trim(),
       body: form.body,
-      author_id: userId,
-      category_id: Number(form.category_id),
-      price: Number(form.price) || 0,
+      author_id: normalizedAuthorId,
+      category_id: normalizedCategoryId,
+      price: Number.isFinite(normalizedPrice) && normalizedPrice > 0 ? normalizedPrice : 0,
       currency: form.currency || 'UAH',
-      lat: form.lat === '' ? null : Number(form.lat),
-      lng: form.lng === '' ? null : Number(form.lng),
+      lat: normalizedLat,
+      lng: normalizedLng,
       status: form.status,
       photo_paths: photos.map((photo) => photo.path),
     };
