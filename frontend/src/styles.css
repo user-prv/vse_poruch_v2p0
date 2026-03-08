@@ -389,3 +389,54 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-page-shell {
+  display: flex;
+  justify-content: center;
+  padding: 56px 16px;
+}
+
+.admin-card {
+  width: min(100%, 1080px);
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 18px;
+  padding: 18px 18px 24px;
+}
+
+.admin-title {
+  margin: 0 0 14px;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.admin-tab-btn {
+  border: 0;
+  border-radius: 16px;
+  padding: 9px 18px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  background: #2e62e8;
+  cursor: pointer;
+}
+
+.admin-tab-btn.active,
+.admin-tab-map {
+  background: #0f172a;
+}
+
+.admin-actions-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}

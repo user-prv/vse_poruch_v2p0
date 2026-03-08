@@ -284,7 +284,7 @@ func (a *API) ListListings(c *gin.Context) {
 	}
 	if status != "" {
 		dbq = dbq.Where("status = ?", status)
-	} else {
+	} else if authorID <= 0 {
 		dbq = dbq.Where("status = ?", "active")
 	}
 	if authorID > 0 {
