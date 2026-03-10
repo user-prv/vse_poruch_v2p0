@@ -15,12 +15,6 @@
 - Legacy код використовується як джерело істини для поетапного cutover.
 
 
-## Test seed data
+## Корисні інструкції
 
-Run seed after migrations to populate test categories/listings:
-
-```bash
-psql "$DATABASE_URL" -f backend/seed.sql
-```
-
-Seed creates 10 categories and 30 listings with mixed statuses (`draft`, `pending_verification`, `active`, `rejected`, `archived`).
+- Вхід в адмінку та створення категорій: `docs/admin-access-and-categories.md`.
