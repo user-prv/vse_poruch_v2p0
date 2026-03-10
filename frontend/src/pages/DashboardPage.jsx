@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
 import { useAppStore } from '../shared/store';
+import { getStatusLabel } from '../shared/listingUtils';
 
 const TABS = {
   profile: 'profile',
@@ -9,12 +10,6 @@ const TABS = {
   editor: 'editor',
 };
 
-const STATUS_LABELS = {
-  active: 'active',
-  blocked: 'blocked',
-  deleted: 'deleted',
-  pending: 'pending',
-};
 
 
 function parseUserIdFromToken(token) {
@@ -24,9 +19,10 @@ function parseUserIdFromToken(token) {
 
 function statusBadgeStyle(status) {
   if (status === 'active') return { color: '#166534' };
-  if (status === 'blocked') return { color: '#b91c1c' };
-  if (status === 'deleted') return { color: '#6b7280' };
-  return { color: '#92400e' };
+  if (status === 'rejected') return { color: '#b91c1c' };
+  if (status === 'archived') return { color: '#6b7280' };
+  if (status === 'pending_verification') return { color: '#92400e' };
+  return { color: '#1d4ed8' };
 }
 
 function DashboardProfileTab({ user, refreshKey }) {
@@ -79,6 +75,11 @@ function DashboardListingsTab({ userId, onEdit }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [updatedAfter, setUpdatedAfter] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 10;
 
   const loadListings = async () => {
     if (!userId) {
@@ -90,9 +91,10 @@ function DashboardListingsTab({ userId, onEdit }) {
     setError('');
     try {
       const { data } = await apiClient.get('/listings', {
-        params: { author_id: userId, limit: 50 },
+        params: { author_id: userId, page, limit: PAGE_SIZE },
       });
       setItems(data?.items || []);
+      setTotal(data?.total || 0);
     } catch (requestError) {
       setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити оголошення');
     } finally {
@@ -102,7 +104,7 @@ function DashboardListingsTab({ userId, onEdit }) {
 
   useEffect(() => {
     loadListings();
-  }, [userId]);
+  }, [userId, page]);
 
   const handleDelete = async (listingId) => {
     try {
@@ -113,17 +115,48 @@ function DashboardListingsTab({ userId, onEdit }) {
     }
   };
 
+  const visibleItems = items.filter((item) => {
+    const statusOk = statusFilter === 'all' ? true : item.status === statusFilter;
+    if (!statusOk) return false;
+    if (!updatedAfter) return true;
+    if (!item.updated_at) return false;
+    const dateOnly = new Date(item.updated_at).toISOString().slice(0, 10);
+    return dateOnly >= updatedAfter;
+  });
+
   return (
     <AsyncState loading={loading} error={error}>
       <h2>Мої оголошення</h2>
-      {items.length === 0 ? <p>Ще немає оголошень.</p> : null}
-      {items.map((item) => (
-        <article key={item.id} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+      <label>
+        Фільтр статусу:
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">Усі</option>
+          <option value="draft">Чернетка</option>
+          <option value="pending_verification">На перевірці</option>
+          <option value="active">Активне</option>
+          <option value="rejected">Відхилене</option>
+          <option value="archived">Архівне</option>
+        </select>
+      </label>
+      <label>
+        Оновлено після:
+        <input type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} />
+      </label>
+
+      <div>
+        <button type="button" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Попередня</button>
+        <span> {page} / {Math.max(1, Math.ceil(total / PAGE_SIZE))} </span>
+        <button type="button" disabled={page >= Math.max(1, Math.ceil(total / PAGE_SIZE))} onClick={() => setPage((prev) => prev + 1)}>Наступна</button>
+      </div>
+      {visibleItems.length === 0 ? <p>Ще немає оголошень.</p> : null}
+      {visibleItems.map((item) => (
+        <article key={item.id} className="dashboard-listing-card">
           <h3>{item.title}</h3>
           <p style={statusBadgeStyle(item.status)}>
-            Статус: <strong>{STATUS_LABELS[item.status] || item.status}</strong>
+            Статус: <strong>{getStatusLabel(item.status)}</strong>
           </p>
           <p>{item.body || 'Опис відсутній'}</p>
+          {item.status === 'rejected' && item.rejection_reason ? <p>Причина відхилення: {item.rejection_reason}</p> : null}
           <button type="button" onClick={() => onEdit(item.id)}>
             Редагувати
           </button>{' '}
@@ -223,7 +256,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
     currency: 'UAH',
     lat: '',
     lng: '',
-    status: 'pending',
+    status: 'draft',
   });
   const [photos, setPhotos] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -259,13 +292,13 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
               currency: listing.currency || 'UAH',
               lat: listing.lat == null ? '' : String(listing.lat),
               lng: listing.lng == null ? '' : String(listing.lng),
-              status: listing.status || 'pending',
+              status: listing.status || 'draft',
             });
             const normalizedPhotos = Array.isArray(listing.photo_paths) ? listing.photo_paths : [];
             setPhotos(normalizedPhotos.map((path, idx) => ({ id: `${path}-${idx}`, path })));
           }
         } else if (active) {
-          setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'pending' });
+          setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'draft' });
           setPhotos([]);
         }
       } catch (requestError) {
@@ -283,13 +316,13 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
   }, [editId]);
 
   const allowedStatuses = useMemo(() => {
-    if (form.status === 'blocked') {
-      return ['blocked', 'pending', 'deleted'];
+    if (form.status === 'rejected') {
+      return ['rejected', 'draft'];
     }
-    if (form.status === 'deleted') {
-      return ['deleted', 'pending'];
+    if (form.status === 'archived') {
+      return ['archived'];
     }
-    return ['pending', 'active', 'deleted'];
+    return ['draft', 'pending_verification'];
   }, [form.status]);
 
   const uploadPhoto = async (event) => {
@@ -386,7 +419,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       currency: form.currency || 'UAH',
       lat: normalizedLat,
       lng: normalizedLng,
-      status: editId ? form.status : 'pending',
+      status: editId ? form.status : 'draft',
       photo_paths: photos.map((photo) => photo.path),
     };
 
@@ -398,7 +431,7 @@ function DashboardListingFormTab({ userId, editId, onSaved }) {
       }
       setSuccess(editId ? 'Оголошення оновлено' : 'Оголошення створено');
       if (!editId) {
-        setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'pending' });
+        setForm({ title: '', body: '', category_id: '', price: '', currency: 'UAH', lat: '', lng: '', status: 'draft' });
         setPhotos([]);
       }
       onSaved();

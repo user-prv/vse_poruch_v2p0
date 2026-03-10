@@ -27,7 +27,6 @@ export function HomePage() {
 
   const page = Math.max(1, Number(searchParams.get('page') || 1));
   const q = searchParams.get('q') || '';
-  const status = searchParams.get('status') || '';
 
   useEffect(() => {
     let active = true;
@@ -42,7 +41,6 @@ export function HomePage() {
               page,
               limit: PAGE_SIZE,
               q: q || undefined,
-              status: status || undefined,
             },
           }),
           apiClient.get('/categories'),
@@ -72,7 +70,7 @@ export function HomePage() {
     return () => {
       active = false;
     };
-  }, [page, q, status]);
+  }, [page, q]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const categoryById = useMemo(
@@ -85,13 +83,9 @@ export function HomePage() {
     const formData = new FormData(event.currentTarget);
     const next = new URLSearchParams();
     const nextQ = String(formData.get('q') || '').trim();
-    const nextStatus = String(formData.get('status') || '').trim();
 
     if (nextQ) {
       next.set('q', nextQ);
-    }
-    if (nextStatus) {
-      next.set('status', nextStatus);
     }
     next.set('page', '1');
 
@@ -122,19 +116,6 @@ export function HomePage() {
               відмовиш — показуватиметься карта за останньою збереженою локацією або за Києвом.
             </p>
 
-            <div className="status-filter-row">
-              <label htmlFor="status-filter">Статус:</label>
-              <select id="status-filter" name="status" defaultValue={status} form="status-form">
-                <option value="">Усі</option>
-                <option value="active">active</option>
-                <option value="pending">pending</option>
-                <option value="approved">approved</option>
-                <option value="rejected">rejected</option>
-              </select>
-              <form id="status-form" onSubmit={applyFilters}>
-                <button type="submit">Оновити</button>
-              </form>
-            </div>
           </div>
 
           <AsyncState loading={loading} error={error}>
@@ -194,9 +175,6 @@ export function HomePage() {
             title="Карта"
             src="https://www.openstreetmap.org/export/embed.html?bbox=30.39%2C50.39%2C30.67%2C50.53&layer=mapnik&marker=50.4501%2C30.5234"
           />
-          <div className="map-pin" aria-hidden="true">
-            📍
-          </div>
         </section>
       </section>
     </main>

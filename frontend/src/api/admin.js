@@ -10,8 +10,8 @@ export async function fetchCategories() {
   return data;
 }
 
-export async function moderateListing(listingId, status) {
-  const { data } = await apiClient.post(`/admin/listings/${listingId}/moderate`, { status });
+export async function moderateListing(listingId, status, reason = "") {
+  const { data } = await apiClient.post(`/admin/listings/${listingId}/moderate`, { status, reason });
   return data;
 }
 
