@@ -22,6 +22,26 @@ const ADMIN_TABS = {
   categories: 'categories',
 };
 
+function normalizeCollection(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload?.data?.items)) {
+    return payload.data.items;
+  }
+
+  return [];
+}
+
 function toRole(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -70,9 +90,9 @@ export function AdminPage() {
         fetchCategories(),
       ]);
 
-      const listingItems = listingResponse?.items || [];
+      const listingItems = normalizeCollection(listingResponse);
       setListings(listingItems);
-      setCategories(Array.isArray(categoryResponse) ? categoryResponse : []);
+      setCategories(normalizeCollection(categoryResponse));
 
       const authorIds = [...new Set(listingItems.map((item) => item.author_id).filter(Boolean))].slice(0, 30);
       const usersLoaded = await Promise.allSettled(authorIds.map((id) => fetchUserProfile(id)));
