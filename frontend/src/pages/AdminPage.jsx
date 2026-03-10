@@ -13,7 +13,7 @@ import {
   verifyUser,
 } from '../api/admin';
 
-const LISTING_STATUSES = ['pending', 'active', 'blocked', 'deleted'];
+const LISTING_STATUSES = ['draft', 'pending_verification', 'active', 'rejected', 'archived'];
 
 const ADMIN_TABS = {
   users: 'users',
@@ -64,7 +64,7 @@ export function AdminPage() {
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
 
-  const [bulkListingStatus, setBulkListingStatus] = useState('blocked');
+  const [bulkListingStatus, setBulkListingStatus] = useState('pending_verification');
   const [categoryIconPath, setCategoryIconPath] = useState('/uploads/category_icons/default.svg');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategoryId, setEditingCategoryId] = useState(null);
@@ -151,7 +151,8 @@ export function AdminPage() {
 
   const handleListingStatus = async (listingId, status) => {
     if (!canManageAdmin) return;
-    await moderateListing(listingId, status);
+    const reason = status === 'rejected' ? 'Потрібне доопрацювання' : '';
+    await moderateListing(listingId, status, reason);
     addLog(`Оголошення #${listingId}: статус ${status}.`);
     await loadData();
   };
@@ -312,7 +313,7 @@ export function AdminPage() {
                     <td>{item.status}</td>
                     <td>
                       <button onClick={() => handleListingStatus(item.id, 'active')} disabled={!canManageAdmin}>Підтвердити</button>
-                      <button onClick={() => handleListingStatus(item.id, 'blocked')} disabled={!canManageAdmin}>Блок</button>
+                      <button onClick={() => handleListingStatus(item.id, 'rejected')} disabled={!canManageAdmin}>Відхилити</button>
                     </td>
                   </tr>
                 ))}

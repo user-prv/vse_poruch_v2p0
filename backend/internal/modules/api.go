@@ -23,10 +23,11 @@ type API struct {
 }
 
 var allowedListingStatuses = map[string]struct{}{
-	"active":  {},
-	"blocked": {},
-	"deleted": {},
-	"pending": {},
+	"draft":                {},
+	"pending_verification": {},
+	"active":               {},
+	"rejected":             {},
+	"archived":             {},
 }
 
 var adminEmails = map[string]struct{}{
@@ -45,7 +46,7 @@ func shouldAssignAdminRole(email string) bool {
 func normalizeStatus(status string) string {
 	normalized := strings.ToLower(strings.TrimSpace(status))
 	if normalized == "" {
-		return "pending"
+		return "draft"
 	}
 	if _, ok := allowedListingStatuses[normalized]; ok {
 		return normalized
@@ -60,22 +61,25 @@ func listingToResponse(listing Listing) gin.H {
 	}
 
 	return gin.H{
-		"id":          listing.ID,
-		"title":       listing.Title,
-		"body":        listing.Body,
-		"author_id":   listing.AuthorID,
-		"category_id": listing.CategoryID,
-		"price":       listing.Price,
-		"currency":    listing.Currency,
-		"lat":         listing.Latitude,
-		"lng":         listing.Longitude,
-		"status":      listing.Status,
-		"photo_paths": photoPaths,
+		"id":               listing.ID,
+		"title":            listing.Title,
+		"body":             listing.Body,
+		"author_id":        listing.AuthorID,
+		"category_id":      listing.CategoryID,
+		"price":            listing.Price,
+		"currency":         listing.Currency,
+		"lat":              listing.Latitude,
+		"lng":              listing.Longitude,
+		"status":           listing.Status,
+		"rejection_reason": listing.RejectionReason,
+		"photo_paths":      photoPaths,
+		"created_at":       listing.CreatedAt,
+		"updated_at":       listing.UpdatedAt,
 	}
 }
 
 func RegisterRoutes(rg *gin.RouterGroup, authGroup *gin.RouterGroup, db *gorm.DB, log *logrus.Logger) error {
-	if err := db.AutoMigrate(&User{}, &Category{}, &Listing{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &Category{}, &Listing{}, &ListingStatusHistory{}, &Notification{}); err != nil {
 		return err
 	}
 	api := &API{db: db, log: log}
@@ -208,10 +212,51 @@ type listingRequest struct {
 	PhotoPaths []string `json:"photo_paths"`
 }
 
+func nextStatusOnCreate(requestedStatus string) string {
+	if requestedStatus != "draft" {
+		return "pending_verification"
+	}
+	return "draft"
+}
+
+func nextStatusOnUpdate(previousStatus, requestedStatus string) string {
+	if previousStatus != requestedStatus || requestedStatus != "draft" {
+		return "pending_verification"
+	}
+	return "draft"
+}
+
+func validateListingPayload(req listingRequest) string {
+	if strings.TrimSpace(req.Title) == "" || len([]rune(strings.TrimSpace(req.Title))) < 3 {
+		return "title is required and must be at least 3 chars"
+	}
+	if req.CategoryID == 0 {
+		return "category_id is required"
+	}
+	if req.Price > 1000000000 {
+		return "price is too large"
+	}
+	if req.Latitude != nil && (*req.Latitude < -90 || *req.Latitude > 90) {
+		return "invalid lat"
+	}
+	if req.Longitude != nil && (*req.Longitude < -180 || *req.Longitude > 180) {
+		return "invalid lng"
+	}
+	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
+	if currency != "" && len(currency) != 3 {
+		return "currency must be 3-letter code"
+	}
+	return ""
+}
+
 func (a *API) CreateListing(c *gin.Context) {
 	var req listingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request")
+		return
+	}
+	if validationError := validateListingPayload(req); validationError != "" {
+		response.Error(c, http.StatusBadRequest, validationError)
 		return
 	}
 	status := normalizeStatus(req.Status)
@@ -241,9 +286,7 @@ func (a *API) CreateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "category not found")
 		return
 	}
-	if status == "active" {
-		status = "pending"
-	}
+	status = nextStatusOnCreate(status)
 	photoBytes, _ := json.Marshal(req.PhotoPaths)
 	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
 	if currency == "" {
@@ -254,6 +297,7 @@ func (a *API) CreateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "cannot create listing")
 		return
 	}
+	a.db.Create(&ListingStatusHistory{ListingID: listing.ID, ToStatus: listing.Status, ChangedBy: listing.AuthorID})
 	response.JSON(c, http.StatusCreated, listingToResponse(listing))
 }
 
@@ -319,6 +363,10 @@ func (a *API) UpdateListing(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid request")
 		return
 	}
+	if validationError := validateListingPayload(req); validationError != "" {
+		response.Error(c, http.StatusBadRequest, validationError)
+		return
+	}
 	status := normalizeStatus(req.Status)
 	if status == "" {
 		response.Error(c, http.StatusBadRequest, "invalid status")
@@ -329,13 +377,39 @@ func (a *API) UpdateListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
+	if req.AuthorID != 0 {
+		var author User
+		if err := a.db.First(&author, req.AuthorID).Error; err != nil {
+			response.Error(c, http.StatusBadRequest, "author not found")
+			return
+		}
+		listing.AuthorID = req.AuthorID
+	}
+	var category Category
+	if err := a.db.First(&category, req.CategoryID).Error; err != nil {
+		response.Error(c, http.StatusBadRequest, "category not found")
+		return
+	}
 	photoBytes, _ := json.Marshal(req.PhotoPaths)
 	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
 	if currency == "" {
 		currency = "UAH"
 	}
-	listing.Title, listing.Body, listing.AuthorID, listing.CategoryID, listing.Price, listing.Currency, listing.Latitude, listing.Longitude, listing.Status, listing.PhotoPaths = html.EscapeString(req.Title), html.EscapeString(req.Body), req.AuthorID, req.CategoryID, req.Price, currency, req.Latitude, req.Longitude, status, string(photoBytes)
+	previousStatus := listing.Status
+	listing.Title = html.EscapeString(req.Title)
+	listing.Body = html.EscapeString(req.Body)
+	listing.CategoryID = req.CategoryID
+	listing.Price = req.Price
+	listing.Currency = currency
+	listing.Latitude = req.Latitude
+	listing.Longitude = req.Longitude
+	listing.PhotoPaths = string(photoBytes)
+	listing.Status = nextStatusOnUpdate(previousStatus, status)
+	if listing.Status == "pending_verification" {
+		listing.RejectionReason = ""
+	}
 	a.db.Save(&listing)
+	a.db.Create(&ListingStatusHistory{ListingID: listing.ID, FromStatus: previousStatus, ToStatus: listing.Status, ChangedBy: listing.AuthorID})
 	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
 
@@ -345,8 +419,10 @@ func (a *API) DeleteListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
-	listing.Status = "deleted"
+	prev := listing.Status
+	listing.Status = "archived"
 	a.db.Save(&listing)
+	a.db.Create(&ListingStatusHistory{ListingID: listing.ID, FromStatus: prev, ToStatus: listing.Status, ChangedBy: listing.AuthorID})
 	response.JSON(c, http.StatusOK, gin.H{"deleted": true, "status": listing.Status})
 }
 
@@ -416,9 +492,32 @@ func (a *API) UploadPhoto(c *gin.Context) {
 	response.JSON(c, http.StatusCreated, gin.H{"path": "/uploads/" + name})
 }
 
+func (a *API) requireAdmin(c *gin.Context) (*User, bool) {
+	userID := parseBearerUserID(c.GetHeader("Authorization"))
+	if userID == 0 {
+		response.Error(c, http.StatusForbidden, "admin auth required")
+		return nil, false
+	}
+	var user User
+	if err := a.db.First(&user, userID).Error; err != nil {
+		response.Error(c, http.StatusForbidden, "admin user not found")
+		return nil, false
+	}
+	if strings.ToLower(strings.TrimSpace(user.Role)) != "admin" {
+		response.Error(c, http.StatusForbidden, "admin role required")
+		return nil, false
+	}
+	return &user, true
+}
+
 func (a *API) ModerateListing(c *gin.Context) {
+	adminUser, ok := a.requireAdmin(c)
+	if !ok {
+		return
+	}
 	var payload struct {
 		Status string `json:"status" binding:"required"`
+		Reason string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request")
@@ -434,13 +533,25 @@ func (a *API) ModerateListing(c *gin.Context) {
 		response.Error(c, http.StatusNotFound, "listing not found")
 		return
 	}
+	prev := listing.Status
 	listing.Status = status
+	listing.RejectionReason = ""
+	if status == "rejected" {
+		listing.RejectionReason = strings.TrimSpace(payload.Reason)
+	}
 	a.db.Save(&listing)
-	a.log.WithFields(logrus.Fields{"event": "admin.moderate_listing", "listing_id": listing.ID, "status": listing.Status}).Info("audit")
+	changedBy := adminUser.ID
+	a.db.Create(&ListingStatusHistory{ListingID: listing.ID, FromStatus: prev, ToStatus: listing.Status, Reason: listing.RejectionReason, ChangedBy: changedBy})
+	a.db.Create(&Notification{UserID: listing.AuthorID, Message: fmt.Sprintf("Listing #%d moderation result: %s", listing.ID, listing.Status)})
+	a.log.WithFields(logrus.Fields{"event": "admin.moderate_listing", "listing_id": listing.ID, "status": listing.Status, "reason": listing.RejectionReason}).Info("audit")
 	response.JSON(c, http.StatusOK, listingToResponse(listing))
 }
 func (a *API) VerifyUser(c *gin.Context) {
-	a.log.WithFields(logrus.Fields{"event": "admin.verify_user", "user_id": c.Param("id")}).Info("audit")
+	adminUser, ok := a.requireAdmin(c)
+	if !ok {
+		return
+	}
+	a.log.WithFields(logrus.Fields{"event": "admin.verify_user", "user_id": c.Param("id"), "admin_user_id": adminUser.ID}).Info("audit")
 	var user User
 	if err := a.db.First(&user, c.Param("id")).Error; err != nil {
 		response.Error(c, http.StatusNotFound, "user not found")
@@ -451,7 +562,11 @@ func (a *API) VerifyUser(c *gin.Context) {
 	response.JSON(c, http.StatusOK, gin.H{"user_id": user.ID, "verified": user.Verified})
 }
 func (a *API) BlockUser(c *gin.Context) {
-	a.log.WithFields(logrus.Fields{"event": "admin.block_user", "user_id": c.Param("id")}).Info("audit")
+	adminUser, ok := a.requireAdmin(c)
+	if !ok {
+		return
+	}
+	a.log.WithFields(logrus.Fields{"event": "admin.block_user", "user_id": c.Param("id"), "admin_user_id": adminUser.ID}).Info("audit")
 	var user User
 	if err := a.db.First(&user, c.Param("id")).Error; err != nil {
 		response.Error(c, http.StatusNotFound, "user not found")
@@ -462,7 +577,11 @@ func (a *API) BlockUser(c *gin.Context) {
 	response.JSON(c, http.StatusOK, gin.H{"user_id": user.ID, "blocked": user.IsBlocked})
 }
 func (a *API) SetCategoryIcon(c *gin.Context) {
-	a.log.WithFields(logrus.Fields{"event": "admin.set_category_icon", "category_id": c.Param("id")}).Info("audit")
+	adminUser, ok := a.requireAdmin(c)
+	if !ok {
+		return
+	}
+	a.log.WithFields(logrus.Fields{"event": "admin.set_category_icon", "category_id": c.Param("id"), "admin_user_id": adminUser.ID}).Info("audit")
 	var payload struct {
 		IconPath string `json:"icon_path" binding:"required"`
 	}
