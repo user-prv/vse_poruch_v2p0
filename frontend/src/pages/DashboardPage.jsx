@@ -548,7 +548,13 @@ export function DashboardPage() {
         <button type="button" onClick={() => setTab(TABS.listings)}>
           Мої оголошення
         </button>{' '}
-        <button type="button" onClick={() => setTab(TABS.editor)}>
+        <button
+          type="button"
+          onClick={() => {
+            setEditId(null);
+            setTab(TABS.editor);
+          }}
+        >
           Створення / редагування
         </button>
       </nav>
