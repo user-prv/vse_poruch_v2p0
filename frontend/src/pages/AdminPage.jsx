@@ -322,8 +322,8 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleListings.map((item) => (
-                  <tr key={item.id}>
+                {visibleListings.map((item, index) => (
+                  <tr key={`listing-${item.id ?? item.author_id ?? index}`}>
                     <td>
                       <input
                         type="checkbox"
@@ -369,8 +369,8 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleUsers.map((item) => (
-                  <tr key={item.id}>
+                {visibleUsers.map((item, index) => (
+                  <tr key={`user-${item.id ?? item.email ?? index}`}>
                     <td>
                       <input type="checkbox" checked={selectedUserIds.includes(item.id)} onChange={() => toggleSelection(selectedUserIds, setSelectedUserIds, item.id)} />
                     </td>
@@ -407,8 +407,8 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {verificationListings.map((item) => (
-                  <tr key={item.id}>
+                {verificationListings.map((item, index) => (
+                  <tr key={`verification-${item.id ?? item.author_id ?? index}`}>
                     <td>{item.id}</td>
                     <td>{item.title}</td>
                     <td>{item.author_id}</td>
@@ -452,8 +452,8 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleCategories.map((item) => (
-                  <tr key={item.id}>
+                {visibleCategories.map((item, index) => (
+                  <tr key={`category-${item.id ?? item.name ?? index}`}>
                     <td>
                       <input
                         type="checkbox"

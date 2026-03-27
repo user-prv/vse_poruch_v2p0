@@ -37,8 +37,9 @@ export function ItemDetailsPage() {
         const listingData = listingResponse.data;
         setListing(listingData);
 
+        const shouldLoadAuthor = Boolean(listingData.author_id);
         const [authorResponse, categoriesResponse] = await Promise.all([
-          apiClient.get(`/profile/${listingData.author_id}`),
+          shouldLoadAuthor ? apiClient.get(`/profile/${listingData.author_id}`) : Promise.resolve({ data: null }),
           apiClient.get('/categories'),
         ]);
 
