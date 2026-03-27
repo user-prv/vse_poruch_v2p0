@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
+import { unwrapApiData } from '../shared/apiPayload';
 
 function buildMockGallery(id) {
   return [1, 2, 3].map((index) => ({
@@ -9,6 +10,17 @@ function buildMockGallery(id) {
     url: `https://picsum.photos/seed/listing-${id}-${index}/900/600`,
     alt: `Фото оголошення ${id} #${index}`,
   }));
+}
+
+function normalizeCategories(payload) {
+  const data = unwrapApiData(payload);
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+  return [];
 }
 
 export function ItemDetailsPage() {
@@ -34,7 +46,7 @@ export function ItemDetailsPage() {
           return;
         }
 
-        const listingData = listingResponse.data;
+        const listingData = unwrapApiData(listingResponse.data);
         setListing(listingData);
 
         const shouldLoadAuthor = Boolean(listingData.author_id);
@@ -47,8 +59,8 @@ export function ItemDetailsPage() {
           return;
         }
 
-        setAuthor(authorResponse.data);
-        setCategories(categoriesResponse.data || []);
+        setAuthor(unwrapApiData(authorResponse.data));
+        setCategories(normalizeCategories(categoriesResponse.data));
       } catch (requestError) {
         if (active) {
           setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити картку оголошення');
