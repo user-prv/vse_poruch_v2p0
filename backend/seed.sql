@@ -9,17 +9,19 @@ INSERT INTO categories (name, parent_id, icon_path) VALUES
 ('Ремонт', 6, ''),
 ('Транспорт', NULL, ''),
 ('Велосипеди', 8, ''),
-('Дитячі товари', NULL, '');
+('Дитячі товари', NULL, '')
+ON CONFLICT DO NOTHING;
 
 -- Users
 INSERT INTO users (email, role, is_blocked, verified) VALUES
 ('user1@example.com', 'user', false, true),
 ('user2@example.com', 'user', false, true),
 ('user3@example.com', 'user', false, false),
-('admin_seed@example.com', 'admin', false, true);
+('admin_seed@example.com', 'admin', false, true)
+ON CONFLICT (email) DO NOTHING;
 
 -- Listings (sample 30)
-INSERT INTO listings (title, body, author_id, category_id, price, currency, lat, lng, status, rejection_reason, photo_paths)
+INSERT INTO listings (title, body, author_id, category_id, price, currency, latitude, longitude, status, rejection_reason, photo_paths)
 SELECT
   'Test listing #' || gs,
   'Generated seed listing ' || gs,
@@ -32,4 +34,5 @@ SELECT
   (ARRAY['draft','pending_verification','active','rejected','archived'])[1 + (gs % 5)],
   CASE WHEN gs % 5 = 3 THEN 'Неповні дані в оголошенні' ELSE '' END,
   '[]'
-FROM generate_series(1, 30) gs;
+FROM generate_series(1, 30) gs
+WHERE NOT EXISTS (SELECT 1 FROM listings);
