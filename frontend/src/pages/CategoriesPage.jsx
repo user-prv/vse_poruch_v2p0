@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
@@ -29,6 +29,39 @@ function ensureLeaflet() {
   return leafletLoader;
 }
 
+
+function toNumberOrNull(value) {
+  const next = typeof value === 'string' ? Number(value) : value;
+  return Number.isFinite(next) ? next : null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildPopupMarkup(item) {
+  const title = escapeHtml(item.title || `#${item.id}`);
+  const detailsHref = `/item/${item.id}`;
+  const price = Number.isFinite(item.price) ? `${item.price} ${escapeHtml(item.currency || 'UAH')}` : 'Ціну не вказано';
+  const photo = item.previewPhoto
+    ? `<img src="${escapeHtml(item.previewPhoto)}" alt="${title}" loading="lazy" />`
+    : '';
+
+  return `
+    <article class="category-map-popup">
+      <h4>${title}</h4>
+      <p class="category-map-popup__price">${price}</p>
+      ${photo}
+      <a href="${detailsHref}">Детальніше →</a>
+    </article>
+  `;
+}
+
 function normalizeCategories(payload) {
   const data = unwrapApiData(payload);
   if (Array.isArray(data)) return data;
@@ -39,6 +72,7 @@ function normalizeCategories(payload) {
 function CategoryMap({ items, activeId, onSelect }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +81,7 @@ function CategoryMap({ items, activeId, onSelect }) {
       const map = L.map(hostRef.current).setView([KYIV.lat, KYIV.lng], 11);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
       mapRef.current = { L, map, markers: new Map() };
+      setMapReady(true);
     }).catch(() => {});
 
     return () => {
@@ -54,6 +89,7 @@ function CategoryMap({ items, activeId, onSelect }) {
       if (mapRef.current) {
         mapRef.current.map.remove();
         mapRef.current = null;
+        setMapReady(false);
       }
     };
   }, []);
@@ -73,14 +109,14 @@ function CategoryMap({ items, activeId, onSelect }) {
     const bounds = [];
     withCoords.forEach((item) => {
       const marker = mapState.L.marker([item.lat, item.lng]).addTo(mapState.map);
-      marker.bindPopup(item.title || `#${item.id}`);
+      marker.bindPopup(buildPopupMarkup(item), { maxWidth: 280 });
       marker.on('click', () => onSelect(item.id));
       if (item.id === activeId) marker.openPopup();
       mapState.markers.set(item.id, marker);
       bounds.push([item.lat, item.lng]);
     });
     mapState.map.fitBounds(bounds, { padding: [20, 20] });
-  }, [items, activeId, onSelect]);
+  }, [items, activeId, onSelect, mapReady]);
 
   return <div ref={hostRef} className="category-map-host" aria-label="Карта категорії" />;
 }
@@ -132,10 +168,26 @@ export function CategoriesPage() {
   }, [categories]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const handleMapSelect = useCallback((id) => {
+    setActiveListingId(id);
+  }, []);
+
   const selectedListings = useMemo(() => {
     const base = listings
-      .filter((listing) => listing.category_id === selectedCategoryId)
-      .map((item) => ({ ...item, distance: distanceKm(KYIV, { lat: item.lat, lng: item.lng }) }));
+      .filter((listing) => Number(listing.category_id) === selectedCategoryId)
+      .map((item) => {
+        const lat = toNumberOrNull(item.lat);
+        const lng = toNumberOrNull(item.lng);
+        const photoPaths = Array.isArray(item.photo_paths) ? item.photo_paths : [];
+        return {
+          ...item,
+          lat,
+          lng,
+          price: toNumberOrNull(item.price),
+          previewPhoto: photoPaths.find((path) => typeof path === 'string' && path.trim() !== '') || null,
+          distance: distanceKm(KYIV, { lat, lng }),
+        };
+      });
     if (sort === 'price_desc') return [...base].sort((a, b) => (b.price || 0) - (a.price || 0));
     if (sort === 'distance') return [...base].sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
     return [...base].sort((a, b) => (a.price || 0) - (b.price || 0));
@@ -185,7 +237,7 @@ export function CategoriesPage() {
                   </li>
                 ))}
               </ul>
-              <CategoryMap items={selectedListings} activeId={activeListingId} onSelect={setActiveListingId} />
+              <CategoryMap items={selectedListings} activeId={activeListingId} onSelect={handleMapSelect} />
             </div>
           </section>
         ) : (
