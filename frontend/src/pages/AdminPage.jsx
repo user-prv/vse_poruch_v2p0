@@ -46,6 +46,17 @@ function toRole(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeListing(item) {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+  return {
+    ...item,
+    id: Number(item.id),
+    author_id: Number(item.author_id),
+  };
+}
+
 export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -85,12 +96,20 @@ export function AdminPage() {
     setError('');
 
     try {
-      const [listingResponse, categoryResponse] = await Promise.all([
-        fetchListings({ limit: 50, status: listingStatusFilter === 'all' ? undefined : listingStatusFilter, q: listingSearch || undefined }),
-        fetchCategories(),
-      ]);
+      const listingResponses =
+        listingStatusFilter === 'all'
+          ? await Promise.all(LISTING_STATUSES.map((status) => fetchListings({ limit: 50, status })))
+          : [await fetchListings({ limit: 50, status: listingStatusFilter })];
+      const categoryResponse = await fetchCategories();
 
-      const listingItems = normalizeCollection(listingResponse);
+      const dedupedListings = new Map();
+      listingResponses.forEach((payload) => {
+        normalizeCollection(payload)
+          .map(normalizeListing)
+          .filter(Boolean)
+          .forEach((item) => dedupedListings.set(item.id, item));
+      });
+      const listingItems = Array.from(dedupedListings.values()).sort((a, b) => b.id - a.id);
       setListings(listingItems);
       setCategories(normalizeCollection(categoryResponse));
 
@@ -119,6 +138,11 @@ export function AdminPage() {
       return [item.title, item.body, String(item.id), String(item.author_id)].some((part) => String(part || '').toLowerCase().includes(q));
     });
   }, [listings, listingSearch]);
+
+  const verificationListings = useMemo(
+    () => visibleListings.filter((item) => item.status === 'pending_verification'),
+    [visibleListings],
+  );
 
   const visibleUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -322,7 +346,7 @@ export function AdminPage() {
           </section>
         ) : null}
 
-        {activeTab === ADMIN_TABS.users || activeTab === ADMIN_TABS.verification ? (
+        {activeTab === ADMIN_TABS.users ? (
           <section aria-labelledby="admin-users">
             <h2 id="admin-users">Верифікація / блокування користувачів</h2>
             <label>
@@ -357,6 +381,41 @@ export function AdminPage() {
                     <td>
                       <button onClick={() => handleVerifyUser(item.id)} disabled={!canManageAdmin}>Verify</button>
                       <button onClick={() => handleBlockUser(item.id)} disabled={!canManageAdmin}>Block</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
+        {activeTab === ADMIN_TABS.verification ? (
+          <section aria-labelledby="admin-verification">
+            <h2 id="admin-verification">Оголошення на верифікації</h2>
+            <label>
+              Пошук:
+              <input value={listingSearch} onChange={(event) => setListingSearch(event.target.value)} placeholder="id / title / author" />
+            </label>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {verificationListings.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    <td>{item.title}</td>
+                    <td>{item.author_id}</td>
+                    <td>{item.status}</td>
+                    <td>
+                      <button onClick={() => handleListingStatus(item.id, 'active')} disabled={!canManageAdmin}>Підтвердити</button>
+                      <button onClick={() => handleListingStatus(item.id, 'rejected')} disabled={!canManageAdmin}>Відхилити</button>
                     </td>
                   </tr>
                 ))}
