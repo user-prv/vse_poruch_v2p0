@@ -82,6 +82,9 @@ func RegisterRoutes(rg *gin.RouterGroup, authGroup *gin.RouterGroup, db *gorm.DB
 	if err := db.AutoMigrate(&User{}, &Category{}, &Listing{}, &ListingStatusHistory{}, &Notification{}); err != nil {
 		return err
 	}
+	if err := AutoSeedFromFile(db, log); err != nil {
+		return err
+	}
 	api := &API{db: db, log: log}
 
 	authGroup.POST("/register", api.Register)
