@@ -2,16 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
+import { unwrapApiData, unwrapApiItems } from '../shared/apiPayload';
 
 const PAGE_SIZE = 10;
 
 function normalizeCategories(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
+  const data = unwrapApiData(payload);
+  if (Array.isArray(data)) {
+    return data;
   }
 
-  if (Array.isArray(payload?.items)) {
-    return payload.items;
+  if (Array.isArray(data?.items)) {
+    return data.items;
   }
 
   return [];
@@ -50,8 +52,8 @@ export function HomePage() {
           return;
         }
 
-        setListings(listingsResponse.data.items || []);
-        setTotal(listingsResponse.data.total || 0);
+        setListings(unwrapApiItems(listingsResponse.data));
+        setTotal(unwrapApiData(listingsResponse.data)?.total || 0);
         setCategories(normalizeCategories(categoriesResponse.data));
       } catch (requestError) {
         if (!active) {
