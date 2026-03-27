@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
+import { unwrapApiData, unwrapApiItems } from '../shared/apiPayload';
 import { useAppStore } from '../shared/store';
 import { getStatusLabel } from '../shared/listingUtils';
 
@@ -93,8 +94,8 @@ function DashboardListingsTab({ userId, onEdit }) {
       const { data } = await apiClient.get('/listings', {
         params: { author_id: userId, page, limit: PAGE_SIZE },
       });
-      setItems(data?.items || []);
-      setTotal(data?.total || 0);
+      setItems(unwrapApiItems(data));
+      setTotal(unwrapApiData(data)?.total || 0);
     } catch (requestError) {
       setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити оголошення');
     } finally {

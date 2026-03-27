@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
+import { unwrapApiData, unwrapApiItems } from '../shared/apiPayload';
 import { distanceKm } from '../shared/listingUtils';
 
 const PREVIEW_LIMIT = 100;
@@ -29,8 +30,9 @@ function ensureLeaflet() {
 }
 
 function normalizeCategories(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.items)) return payload.items;
+  const data = unwrapApiData(payload);
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
   return [];
 }
 
@@ -106,7 +108,7 @@ export function CategoriesPage() {
         ]);
         if (active) {
           setCategories(normalizeCategories(categoriesResponse.data));
-          setListings(listingsResponse.data.items || []);
+          setListings(unwrapApiItems(listingsResponse.data));
         }
       } catch (requestError) {
         if (active) setError(requestError.response?.data?.error || requestError.message || 'Не вдалося завантажити категорії');

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { AsyncState } from '../shared/AsyncState';
+import { unwrapApiData, unwrapApiItems } from '../shared/apiPayload';
 
 const MAX_PROFILE_LISTINGS = 50;
 
@@ -34,8 +35,8 @@ export function UserProfilePage() {
           return;
         }
 
-        setProfile(profileResponse.data);
-        const authorListings = (listingsResponse.data.items || []).filter((listing) => String(listing.author_id) === String(id));
+        setProfile(unwrapApiData(profileResponse.data));
+        const authorListings = unwrapApiItems(listingsResponse.data).filter((listing) => String(listing.author_id) === String(id));
         setListings(authorListings);
       } catch (requestError) {
         if (active) {
